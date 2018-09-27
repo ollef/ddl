@@ -45,14 +45,18 @@ extern {
         "Type" => Token::Type,
 
         // Symbols
+        "*" => Token::Asterisk,
         "\\" => Token::BSlash,
         ":" => Token::Colon,
         "," => Token::Comma,
         "." => Token::Dot,
         ".." => Token::DotDot,
         "=" => Token::Equal,
+        "/" => Token::FSlash,
+        "-" => Token::Hyphen,
         "->" => Token::LArrow,
         "=>" => Token::LFatArrow,
+        "+" => Token::Plus,
         ";" => Token::Semi,
 
         // Delimiters

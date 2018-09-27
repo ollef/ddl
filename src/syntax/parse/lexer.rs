@@ -152,15 +152,30 @@ pub enum Token<S> {
     Type,   // Type
 
     // Symbols
-    BSlash,    // \
-    Colon,     // :
-    Comma,     // ,
-    Dot,       // .
-    DotDot,    // ..
-    Equal,     // =
-    LArrow,    // ->
-    LFatArrow, // =>
-    Semi,      // ;
+    Amp,           // &
+    AmpAmp,        // &&
+    Bang,          // !
+    BangEqual,     // !=
+    Asterisk,      // *
+    BSlash,        // \
+    Colon,         // :
+    Comma,         // ,
+    Dot,           // .
+    DotDot,        // ..
+    Equal,         // =
+    EqualEqual,    // ==
+    EqualGreater,  // =>
+    FSlash,        // /
+    Greater,       // >
+    GreaterEqual,  // >=
+    Hyphen,        // -
+    HyphenGreater, // ->
+    Less,          // <
+    LessEqual,     // <=
+    Pipe,          // |
+    PipePipe,      // ||
+    Plus,          // +
+    Semi,          // ;
 
     // Delimiters
     LParen,   // (
@@ -184,6 +199,7 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::DecIntLiteral(ref value) => write!(f, "{}", value),
             Token::HexIntLiteral(ref value) => write!(f, "{:x}", value),
             Token::DecFloatLiteral(ref value) => write!(f, "{}", value),
+
             Token::As => write!(f, "as"),
             Token::Match => write!(f, "match"),
             Token::Else => write!(f, "else"),
@@ -196,15 +212,32 @@ impl<S: fmt::Display> fmt::Display for Token<S> {
             Token::Module => write!(f, "module"),
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "Type"),
+
+            Token::Amp => write!(f, "&"),
+            Token::AmpAmp => write!(f, "&&"),
+            Token::Asterisk => write!(f, "*"),
+            Token::Bang => write!(f, "!"),
+            Token::BangEqual => write!(f, "!="),
             Token::BSlash => write!(f, "\\"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
             Token::DotDot => write!(f, ".."),
             Token::Equal => write!(f, "="),
-            Token::LFatArrow => write!(f, "=>"),
-            Token::LArrow => write!(f, "->"),
+            Token::EqualEqual => write!(f, "=="),
+            Token::EqualGreater => write!(f, "=>"),
+            Token::FSlash => write!(f, "/"),
+            Token::Greater => write!(f, ">"),
+            Token::GreaterEqual => write!(f, ">="),
+            Token::Hyphen => write!(f, "-"),
+            Token::HyphenGreater => write!(f, "->"),
+            Token::Less => write!(f, "<"),
+            Token::LessEqual => write!(f, "<="),
+            Token::Pipe => write!(f, "|"),
+            Token::PipePipe => write!(f, "||"),
+            Token::Plus => write!(f, "+"),
             Token::Semi => write!(f, ";"),
+
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBrace => write!(f, "{{"),
@@ -228,6 +261,7 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::DecIntLiteral(value) => Token::DecIntLiteral(value),
             Token::HexIntLiteral(value) => Token::HexIntLiteral(value),
             Token::DecFloatLiteral(value) => Token::DecFloatLiteral(value),
+
             Token::As => Token::As,
             Token::Match => Token::Match,
             Token::Else => Token::Else,
@@ -240,15 +274,32 @@ impl<'input> From<Token<&'input str>> for Token<String> {
             Token::Module => Token::Module,
             Token::Struct => Token::Struct,
             Token::Type => Token::Type,
+
+            Token::Amp => Token::Amp,
+            Token::AmpAmp => Token::AmpAmp,
+            Token::Asterisk => Token::Asterisk,
+            Token::Bang => Token::Bang,
+            Token::BangEqual => Token::BangEqual,
             Token::BSlash => Token::BSlash,
             Token::Colon => Token::Colon,
             Token::Comma => Token::Comma,
             Token::Dot => Token::Dot,
             Token::DotDot => Token::DotDot,
             Token::Equal => Token::Equal,
-            Token::LFatArrow => Token::LFatArrow,
-            Token::LArrow => Token::LArrow,
+            Token::EqualEqual => Token::EqualEqual,
+            Token::EqualGreater => Token::EqualGreater,
+            Token::FSlash => Token::FSlash,
+            Token::Greater => Token::Greater,
+            Token::GreaterEqual => Token::GreaterEqual,
+            Token::Hyphen => Token::Hyphen,
+            Token::HyphenGreater => Token::HyphenGreater,
+            Token::Less => Token::Less,
+            Token::LessEqual => Token::LessEqual,
+            Token::Pipe => Token::Pipe,
+            Token::PipePipe => Token::PipePipe,
+            Token::Plus => Token::Plus,
             Token::Semi => Token::Semi,
+
             Token::LParen => Token::LParen,
             Token::RParen => Token::RParen,
             Token::LBrace => Token::LBrace,
@@ -538,14 +589,31 @@ impl<'input> Iterator for Lexer<'input> {
                     let (end, symbol) = self.take_while(start, is_symbol);
 
                     match symbol {
+                        "&" => Ok((start, Token::Amp, end)),
+                        "&&" => Ok((start, Token::AmpAmp, end)),
+                        "*" => Ok((start, Token::Asterisk, end)),
+                        "!" => Ok((start, Token::Bang, end)),
+                        "!=" => Ok((start, Token::BangEqual, end)),
+                        // "\\" => Ok((start, Token::BSlash, end)),
                         ":" => Ok(self.repl_command(start)),
                         "," => Ok((start, Token::Comma, end)),
                         "." => Ok((start, Token::Dot, end)),
                         ".." => Ok((start, Token::DotDot, end)),
                         "=" => Ok((start, Token::Equal, end)),
-                        "->" => Ok((start, Token::LArrow, end)),
-                        "=>" => Ok((start, Token::LFatArrow, end)),
+                        "==" => Ok((start, Token::EqualEqual, end)),
+                        "=>" => Ok((start, Token::EqualGreater, end)),
+                        "/" => Ok((start, Token::FSlash, end)),
+                        ">" => Ok((start, Token::Greater, end)),
+                        ">=" => Ok((start, Token::GreaterEqual, end)),
+                        "-" => Ok((start, Token::Hyphen, end)),
+                        "->" => Ok((start, Token::HyphenGreater, end)),
+                        "<" => Ok((start, Token::Less, end)),
+                        "<=" => Ok((start, Token::LessEqual, end)),
+                        "|" => Ok((start, Token::Pipe, end)),
+                        "||" => Ok((start, Token::PipePipe, end)),
+                        "+" => Ok((start, Token::Plus, end)),
                         ";" => Ok((start, Token::Semi, end)),
+
                         symbol if symbol.starts_with("///") => Ok(self.doc_comment(start)),
                         symbol if symbol.starts_with("//") => {
                             self.take_until(start, |ch| ch == '\n');
@@ -706,15 +774,30 @@ mod tests {
     #[test]
     fn symbols() {
         test! {
-            r" \ : , .. = -> => ; ",
-            r" ~                  " => Token::BSlash,
-            r"   ~                " => Token::Colon,
-            r"     ~              " => Token::Comma,
-            r"       ~~           " => Token::DotDot,
-            r"          ~         " => Token::Equal,
-            r"            ~~      " => Token::LArrow,
-            r"               ~~   " => Token::LFatArrow,
-            r"                  ~ " => Token::Semi,
+            r" & && * ! != \ : , .. = == => / > >= - -> < <= | || + ; ",
+            r" ~                                                      " => Token::Amp,
+            r"   ~~                                                   " => Token::AmpAmp,
+            r"      ~                                                 " => Token::Asterisk,
+            r"        ~                                               " => Token::Bang,
+            r"          ~~                                            " => Token::BangEqual,
+            r"             ~                                          " => Token::BSlash,
+            r"               ~                                        " => Token::Colon,
+            r"                 ~                                      " => Token::Comma,
+            r"                   ~~                                   " => Token::DotDot,
+            r"                      ~                                 " => Token::Equal,
+            r"                        ~~                              " => Token::EqualEqual,
+            r"                           ~~                           " => Token::EqualGreater,
+            r"                              ~                         " => Token::FSlash,
+            r"                                ~                       " => Token::Greater,
+            r"                                  ~~                    " => Token::GreaterEqual,
+            r"                                     ~                  " => Token::Hyphen,
+            r"                                       ~~               " => Token::HyphenGreater,
+            r"                                          ~             " => Token::Less,
+            r"                                            ~~          " => Token::LessEqual,
+            r"                                               ~        " => Token::Pipe,
+            r"                                                 ~~     " => Token::PipePipe,
+            r"                                                    ~   " => Token::Plus,
+            r"                                                      ~ " => Token::Semi,
         }
     }
 
