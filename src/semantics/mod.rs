@@ -829,6 +829,143 @@ where
             }
         },
 
+        raw::Term::Unop(_, op, ref raw_operand) => {
+            use syntax::Unop;
+
+            let unnop = |extern_name: &str, operand| {
+                RcTerm::from(Term::App(
+                    RcTerm::from(Term::Extern(extern_name.to_owned())),
+                    operand,
+                ))
+            };
+
+            let (operand, operand_ty) = infer_term(env, raw_operand)?;
+
+            if operand_ty == *env.f32() {
+                let (extern_name, ty) = match op {
+                    Unop::Neg => ("f32-neg", env.f32().clone()),
+                    _ => {
+                        return Err(InternalError::Unimplemented {
+                            span: Some(raw_term.span()),
+                            message: "binary operator error".to_owned(),
+                        }.into())
+                    },
+                };
+
+                Ok((unnop(extern_name, operand), ty))
+            } else if operand_ty == *env.f64() {
+                let (extern_name, ty) = match op {
+                    Unop::Neg => ("f64-neg", env.f64().clone()),
+                    _ => {
+                        return Err(InternalError::Unimplemented {
+                            span: Some(raw_term.span()),
+                            message: "binary operator error".to_owned(),
+                        }.into())
+                    },
+                };
+
+                Ok((unnop(extern_name, operand), ty))
+            } else if operand_ty == *env.bool() {
+                let (extern_name, ty) = match op {
+                    Unop::Not => ("bool-not", env.bool().clone()),
+                    _ => {
+                        return Err(InternalError::Unimplemented {
+                            span: Some(raw_term.span()),
+                            message: "binary operator error".to_owned(),
+                        }.into())
+                    },
+                };
+
+                Ok((unnop(extern_name, operand), ty))
+            } else {
+                Err(InternalError::Unimplemented {
+                    span: Some(raw_term.span()),
+                    message: "unary operators".to_owned(),
+                }.into())
+            }
+        },
+
+        raw::Term::Binop(ref raw_lhs, op, ref raw_rhs) => {
+            use syntax::Binop;
+
+            let binop = |extern_name: &str, lhs, rhs| {
+                RcTerm::from(Term::App(
+                    RcTerm::from(Term::App(
+                        RcTerm::from(Term::Extern(extern_name.to_owned())),
+                        lhs,
+                    )),
+                    rhs,
+                ))
+            };
+
+            let (lhs, lhs_ty) = infer_term(env, raw_lhs)?;
+            let (rhs, rhs_ty) = infer_term(env, raw_rhs)?;
+
+            if lhs_ty == *env.bool() && rhs_ty == *env.bool() {
+                let (extern_name, ty) = match op {
+                    Binop::Or => ("bool-or", env.bool().clone()),
+                    Binop::And => ("bool-and", env.bool().clone()),
+                    Binop::Eq => ("bool-eq", env.bool().clone()),
+                    Binop::Ne => ("bool-ne", env.bool().clone()),
+                    _ => {
+                        return Err(InternalError::Unimplemented {
+                            span: Some(raw_term.span()),
+                            message: "binary operator error".to_owned(),
+                        }.into())
+                    },
+                };
+
+                Ok((binop(extern_name, lhs, rhs), ty))
+            } else if lhs_ty == *env.f32() && rhs_ty == *env.f32() {
+                let (extern_name, ty) = match op {
+                    Binop::Eq => ("f32-eq", env.bool().clone()),
+                    Binop::Ne => ("f32-ne", env.bool().clone()),
+                    Binop::Le => ("f32-le", env.bool().clone()),
+                    Binop::Lt => ("f32-lt", env.bool().clone()),
+                    Binop::Gt => ("f32-gt", env.bool().clone()),
+                    Binop::Ge => ("f32-ge", env.bool().clone()),
+                    Binop::Add => ("f32-add", env.f32().clone()),
+                    Binop::Sub => ("f32-sub", env.f32().clone()),
+                    Binop::Mul => ("f32-mul", env.f32().clone()),
+                    Binop::Div => ("f32-div", env.f32().clone()),
+                    _ => {
+                        return Err(InternalError::Unimplemented {
+                            span: Some(raw_term.span()),
+                            message: "binary operator error".to_owned(),
+                        }.into())
+                    },
+                };
+
+                Ok((binop(extern_name, lhs, rhs), ty))
+            } else if lhs_ty == *env.f64() && rhs_ty == *env.f64() {
+                let (extern_name, ty) = match op {
+                    Binop::Eq => ("f64-eq", env.bool().clone()),
+                    Binop::Ne => ("f64-ne", env.bool().clone()),
+                    Binop::Le => ("f64-le", env.bool().clone()),
+                    Binop::Lt => ("f64-lt", env.bool().clone()),
+                    Binop::Gt => ("f64-gt", env.bool().clone()),
+                    Binop::Ge => ("f64-ge", env.bool().clone()),
+                    Binop::Add => ("f64-add", env.f64().clone()),
+                    Binop::Sub => ("f64-sub", env.f64().clone()),
+                    Binop::Mul => ("f64-mul", env.f64().clone()),
+                    Binop::Div => ("f64-div", env.f64().clone()),
+                    _ => {
+                        return Err(InternalError::Unimplemented {
+                            span: Some(raw_term.span()),
+                            message: "binary operator error".to_owned(),
+                        }.into())
+                    },
+                };
+
+                Ok((binop(extern_name, lhs, rhs), ty))
+            } else {
+                Err(InternalError::Unimplemented {
+                    span: Some(raw_term.span()),
+                    message: "binary operators".to_owned(),
+                }.into())
+            }
+        },
+
         raw::Term::Struct(span, _) => Err(TypeError::AmbiguousStruct { span }),
 
         // I-PROJ

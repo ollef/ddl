@@ -247,6 +247,13 @@ impl ToDoc for Term {
             Term::App(ref head, ref args) => head.to_doc().append(Doc::space()).append(
                 Doc::intersperse(args.iter().map(|arg| arg.to_doc()), Doc::space()),
             ),
+            Term::Unop(_, op, ref term) => Doc::text(op.symbol()).append(term.to_doc()),
+            Term::Binop(ref lhs, op, ref rhs) => lhs
+                .to_doc()
+                .append(Doc::space())
+                .append(op.symbol())
+                .append(Doc::space())
+                .append(rhs.to_doc()),
             Term::Let(_, ref decls, ref body) => {
                 Doc::text("let")
                     .append(Doc::space())

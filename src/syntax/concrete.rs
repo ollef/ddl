@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 use std::fmt;
 
 use syntax::pretty::{self, ToDoc};
-use syntax::{FloatFormat, IntFormat};
+use syntax::{Binop, FloatFormat, IntFormat, Unop};
 
 /// Commands entered in the REPL
 #[derive(Debug, Clone)]
@@ -404,6 +404,20 @@ pub enum Term {
     /// e1 e2
     /// ```
     App(Box<Term>, Vec<Term>),
+    /// Unary operator expressions
+    ///
+    /// ```text
+    /// -x
+    /// !x
+    /// ```
+    Unop(ByteIndex, Unop, Box<Term>),
+    /// Binary operator expressions
+    ///
+    /// ```text
+    /// x + y
+    /// x == y
+    /// ```
+    Binop(Box<Term>, Binop, Box<Term>),
     /// Let binding
     ///
     /// ```text
@@ -467,6 +481,8 @@ impl Term {
             Term::Ann(ref term, ref ty) => term.span().to(ty.span()),
             Term::Arrow(ref ann, ref body) => ann.span().to(body.span()),
             Term::App(ref head, ref arg) => head.span().to(arg.last().unwrap().span()),
+            Term::Unop(start, _, ref term) => ByteSpan::new(start, term.span().end()),
+            Term::Binop(ref lhs, _, ref rhs) => lhs.span().to(rhs.span()),
             Term::Proj(ref term, label_start, ref label) => term
                 .span()
                 .with_end(label_start + ByteOffset::from_str(label)),

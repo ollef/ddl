@@ -147,6 +147,10 @@ impl ToDoc for raw::Term {
                 &scope.unsafe_body.inner,
             ),
             raw::Term::App(ref head, ref arg) => pretty_app(head.to_doc(), iter::once(&arg.inner)),
+            raw::Term::Unop(_, op, ref raw_operand) => unimplemented!("pretty: raw::Term::Unop"),
+            raw::Term::Binop(ref raw_lhs, _, ref raw_rhs) => {
+                unimplemented!("pretty: raw::Term::Binop")
+            },
             raw::Term::Struct(_, ref fields) => {
                 pretty_struct(Doc::concat(fields.iter().map(|&(ref label, ref term)| {
                     parens(

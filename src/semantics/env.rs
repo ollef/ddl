@@ -186,6 +186,11 @@ fn default_extern_definitions() -> HashMap<&'static str, Extern> {
         "f32-div" => prim!(fn(x: f32, y: f32) -> f32 { x / y }),
         "f64-div" => prim!(fn(x: f64, y: f64) -> f64 { x / y }),
 
+        "f32-neg" => prim!(fn(val: f32) -> f32 { -val }),
+        "f64-neg" => prim!(fn(val: f64) -> f64 { -val }),
+
+        "bool-not" => prim!(fn(val: bool) -> bool { !val }),
+
         "char-to-string" => prim!(fn(val: char) -> String { val.to_string() }),
         "f32-to-string" => prim!(fn(val: f32) -> String { val.to_string() }),
         "f64-to-string" => prim!(fn(val: f64) -> String { val.to_string() }),

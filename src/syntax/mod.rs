@@ -32,6 +32,72 @@ impl fmt::Display for Level {
     }
 }
 
+/// An unary operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq, BoundTerm)]
+pub enum Unop {
+    /// Negation: eg. `-x`
+    Neg,
+    /// Not: eg. `!x`
+    Not,
+}
+
+impl Unop {
+    pub fn symbol(&self) -> &'static str {
+        match *self {
+            Unop::Neg => "-",
+            Unop::Not => "!",
+        }
+    }
+}
+
+/// A binary operator
+#[derive(Debug, Copy, Clone, PartialEq, Eq, BoundTerm)]
+pub enum Binop {
+    /// Disjunction: eg. `x | y`
+    Or,
+    /// Conjunction: eg. `x & y`
+    And,
+    /// Equality: eg. `x == y`
+    Eq,
+    /// Inequality: eg. `x != y`
+    Ne,
+    /// Less than or equal: eg. `x <= y`
+    Le,
+    /// Less than: eg. `x < y`
+    Lt,
+    /// Greater than: eg. `x > y`
+    Gt,
+    /// Greater than or equal: eg. `x >= y`
+    Ge,
+    /// Addition: eg. `x + y`
+    Add,
+    /// Subtraction: eg. `x - y`
+    Sub,
+    /// Multiplication: eg. `x * y`
+    Mul,
+    /// Division: eg. `x / y`
+    Div,
+}
+
+impl Binop {
+    pub fn symbol(&self) -> &'static str {
+        match *self {
+            Binop::Or => "|",
+            Binop::And => "&",
+            Binop::Eq => "==",
+            Binop::Ne => "!=",
+            Binop::Le => "<=",
+            Binop::Lt => "<",
+            Binop::Gt => ">",
+            Binop::Ge => ">=",
+            Binop::Add => "+",
+            Binop::Sub => "-",
+            Binop::Mul => "*",
+            Binop::Div => "/",
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IntFormat {
     Bin,

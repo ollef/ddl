@@ -149,39 +149,35 @@ fn parse_bitmap() {
             (
                 label("data"),
                 array(vec![
-                    array(vec![
-                        struct_(vec![
-                            (label("r"), float(0.00)),
-                            (label("g"), float(0.01)),
-                            (label("b"), float(0.02)),
-                        ]),
-                        struct_(vec![
-                            (label("r"), float(0.10)),
-                            (label("g"), float(0.11)),
-                            (label("b"), float(0.12)),
-                        ]),
-                        struct_(vec![
-                            (label("r"), float(0.20)),
-                            (label("g"), float(0.21)),
-                            (label("b"), float(0.22)),
-                        ]),
+                    struct_(vec![
+                        (label("r"), float(0.00)),
+                        (label("g"), float(0.01)),
+                        (label("b"), float(0.02)),
                     ]),
-                    array(vec![
-                        struct_(vec![
-                            (label("r"), float(1.00)),
-                            (label("g"), float(1.01)),
-                            (label("b"), float(1.02)),
-                        ]),
-                        struct_(vec![
-                            (label("r"), float(1.10)),
-                            (label("g"), float(1.11)),
-                            (label("b"), float(1.12)),
-                        ]),
-                        struct_(vec![
-                            (label("r"), float(1.20)),
-                            (label("g"), float(1.21)),
-                            (label("b"), float(1.22)),
-                        ]),
+                    struct_(vec![
+                        (label("r"), float(0.10)),
+                        (label("g"), float(0.11)),
+                        (label("b"), float(0.12)),
+                    ]),
+                    struct_(vec![
+                        (label("r"), float(0.20)),
+                        (label("g"), float(0.21)),
+                        (label("b"), float(0.22)),
+                    ]),
+                    struct_(vec![
+                        (label("r"), float(1.00)),
+                        (label("g"), float(1.01)),
+                        (label("b"), float(1.02)),
+                    ]),
+                    struct_(vec![
+                        (label("r"), float(1.10)),
+                        (label("g"), float(1.11)),
+                        (label("b"), float(1.12)),
+                    ]),
+                    struct_(vec![
+                        (label("r"), float(1.20)),
+                        (label("g"), float(1.21)),
+                        (label("b"), float(1.22)),
                     ]),
                 ]),
             ),

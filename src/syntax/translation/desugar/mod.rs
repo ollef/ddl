@@ -345,6 +345,12 @@ impl Desugar<raw::RcTerm> for concrete::Term {
                     raw::RcTerm::from(raw::Term::App(acc, arg.desugar(env)))
                 })
             },
+            concrete::Term::Unop(start, op, ref term) => {
+                raw::RcTerm::from(raw::Term::Unop(start, op, term.desugar(env)))
+            },
+            concrete::Term::Binop(ref lhs, op, ref rhs) => {
+                raw::RcTerm::from(raw::Term::Binop(lhs.desugar(env), op, rhs.desugar(env)))
+            },
             concrete::Term::Let(_, ref _items, ref _body) => unimplemented!("let bindings"),
             concrete::Term::If(_, ref cond, ref if_true, ref if_false) => {
                 let bool_pattern = |name: &str| {

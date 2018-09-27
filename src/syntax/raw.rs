@@ -1,7 +1,7 @@
 //! The syntax of the language, unchecked and with implicit parts that need to
 //! be elaborated in a type-directed way during type checking and inference
 
-use codespan::ByteSpan;
+use codespan::{ByteIndex, ByteSpan};
 use moniker::{Binder, Embed, Nest, Scope, Var};
 use num_bigint::BigInt;
 use std::fmt;
@@ -9,7 +9,7 @@ use std::ops;
 use std::rc::Rc;
 
 use syntax::pretty::{self, ToDoc};
-use syntax::{FloatFormat, IntFormat, Label, Level};
+use syntax::{Binop, FloatFormat, IntFormat, Label, Level, Unop};
 
 /// A module definition
 pub struct Module {
@@ -193,6 +193,10 @@ pub enum Term {
     Lam(ByteSpan, Scope<(Binder<String>, Embed<RcTerm>), RcTerm>),
     /// Term application
     App(RcTerm, RcTerm),
+    /// Unary operator expressions
+    Unop(ByteIndex, Unop, RcTerm),
+    /// Binary operator expressions
+    Binop(RcTerm, Binop, RcTerm),
     /// Dependent struct
     Struct(ByteSpan, Vec<(Label, RcTerm)>),
     /// Field projection
@@ -220,6 +224,8 @@ impl Term {
             Term::Literal(ref literal) => literal.span(),
             Term::Ann(ref expr, ref ty) => expr.span().to(ty.span()),
             Term::App(ref head, ref arg) => head.span().to(arg.span()),
+            Term::Unop(start, _, ref term) => ByteSpan::new(start, term.span().end()),
+            Term::Binop(ref lhs, _, ref rhs) => lhs.span().to(rhs.span()),
         }
     }
 }
