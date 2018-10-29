@@ -4,6 +4,7 @@ use codespan_reporting::ColorArg;
 use failure::Error;
 
 pub mod check;
+pub mod dump;
 pub mod repl;
 
 // TODO: test using https://github.com/killercup/assert_cli
@@ -31,6 +32,10 @@ pub enum Command {
     #[structopt(name = "check")]
     Check(check::Opts),
 
+    /// Dump the contents of a file, based on a data description
+    #[structopt(name = "dump")]
+    Dump(dump::Opts),
+
     /// A REPL for running expressions
     #[structopt(name = "repl")]
     Repl(repl::Opts),
@@ -40,6 +45,7 @@ pub fn run(opts: Opts) -> Result<(), Error> {
     let color_choice = opts.color.into();
     match opts.command {
         Command::Check(check_opts) => check::run(color_choice, check_opts),
+        Command::Dump(dump_opts) => dump::run(color_choice, dump_opts),
         Command::Repl(repl_opts) => repl::run(color_choice, &repl_opts),
     }
 }
