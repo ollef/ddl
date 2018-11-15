@@ -829,8 +829,7 @@ struct CharMapSubtable4 {
     /// End characterCode for each segment, `last = 0xFFFF`.
     end_count : Array (nat_div seg_count_x2 2) U16Be,
     /// Set to `0`.
-    // TODO: reserved_pad : Reserved U16Be 0,
-    reserved_pad : Reserved U16Be,
+    reserved_pad : Reserved U16Be, // TODO: Reserved U16Be 0,
     /// Start character code for each segment.
     start_count : Array (nat_div seg_count_x2 2) U16Be,
     /// Delta for all character codes in segment.
@@ -877,8 +876,7 @@ struct CharMapSubtable8 {
     /// Format number is set to 8
     format : { format : U16Be | nat_eq format 8 },
     /// Reserved; set to 0
-    // TODO: reserved : Reserved U16Be 0,
-    reserved : Reserved U16Be,
+    reserved : Reserved U16Be, // TODO: Reserved U16Be 0,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -917,8 +915,7 @@ struct CharMapSubtable10 {
     /// Format number is set to 10
     format : { format : U16Be | nat_eq format 10 },
     /// Reserved; set to 0
-    // TODO: reserved : Reserved U16Be 0,
-    reserved : Reserved U16Be,
+    reserved : Reserved U16Be, // TODO: Reserved U16Be 0,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -944,8 +941,7 @@ struct CharMapSubtable12 {
     /// Format number is set to 12
     format : { format : U16Be | nat_eq format 12 },
     /// Reserved; set to 0
-    // TODO: reserved : Reserved U16Be 0,
-    reserved : Reserved U16Be,
+    reserved : Reserved U16Be, // TODO: Reserved U16Be 0,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -978,8 +974,7 @@ struct CharMapSubtable13 {
     /// Format number is set to 13
     format : { format : U16Be | nat_eq format 13 },
     /// Reserved; set to 0
-    // TODO: reserved : Reserved U16Be 0,
-    reserved : Reserved U16Be,
+    reserved : Reserved U16Be, // TODO: Reserved U16Be 0,
     /// Byte length of this subtable (including the header)
     length : U32Be,
     /// Please see "[Note on the language field in 'cmap' subtables]
@@ -1178,17 +1173,13 @@ struct HorizontalHeader1 {
     /// to produce the best appearance. Set to 0 for non-slanted fonts
     caret_offset : S16Be,
     /// (reserved) set to 0
-    // TODO: reserved0 : Reserved S16Be 0,
-    reserved0 : Reserved S16Be,
+    reserved0 : Reserved S16Be, // TODO: Reserved S16Be 0,
     /// (reserved) set to 0
-    // TODO: reserved1 : Reserved S16Be 0,
-    reserved1 : Reserved S16Be,
+    reserved1 : Reserved S16Be, // TODO: Reserved S16Be 0,
     /// (reserved) set to 0
-    // TODO: reserved2 : Reserved S16Be 0,
-    reserved2 : Reserved S16Be,
+    reserved2 : Reserved S16Be, // TODO: Reserved S16Be 0,
     /// (reserved) set to 0
-    // TODO: reserved3 : Reserved S16Be 0,
-    reserved3 : Reserved S16Be,
+    reserved3 : Reserved S16Be, // TODO: Reserved S16Be 0,
     /// 0 for current format.
     metric_data_format : S16Be,
     /// Number of `h_metric` entries in 'hmtx' table
@@ -1924,8 +1915,7 @@ struct Svg0 {
     /// Offset to the SVG Document List, from the start of the SVG table. Must be non-zero.
     offset_to_svg_document_list : Offset32Be start SvgDocumentList,
     /// Set to 0.
-    // TODO: reserved : Reserved U32Be 0,
-    reserved : Reserved U32Be,
+    reserved : Reserved U32Be, // TODO: Reserved U32Be 0,
 };
 
 
@@ -3973,11 +3963,9 @@ union SignatureBlock {
 
 struct SignatureBlockFormat1 {
     /// Reserved for future use; set to zero.
-    // TODO: reserved1 : Reserved U16Be 0,
-    reserved1 : Reserved U16Be,
+    reserved1 : Reserved U16Be, // TODO: Reserved U16Be 0,
     /// Reserved for future use; set to zero.
-    // TODO: reserved2 : Reserved U16Be 0,
-    reserved2 : Reserved U16Be,
+    reserved2 : Reserved U16Be, // TODO: Reserved U16Be 0,
     /// Length (in bytes) of the PKCS#7 packet in the signature field.
     signature_length : U32Be,
     /// PKCS#7 packet
@@ -4239,8 +4227,7 @@ struct Metadata1 {
     // TODO: flags : Reserved U32Be 0,
     flags : Reserved U32Be,
     /// Not used; should be set to 0.
-    // TODO: reserved : Reserved U32Be 0,
-    reserved : Reserved U32Be,
+    reserved : Reserved U32Be, // TODO: Reserved U32Be 0,
     /// The number of data maps in the table.
     data_maps_count : U32Be,
     /// Array of data map records.
