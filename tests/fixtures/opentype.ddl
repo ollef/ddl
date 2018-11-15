@@ -4676,5 +4676,3 @@ struct VerticalMetricsEntry {
     /// The top sidebearing of the glyph. Signed integer in FUnits.
     top_side_bearing : S16Be,
 };
-
-// TODO
