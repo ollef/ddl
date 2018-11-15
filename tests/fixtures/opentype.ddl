@@ -223,7 +223,7 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "EBSC" => EmbeddedBitmapScalingData,    // Embedded bitmap scaling data
     "CBDT" => Unknown,                      // Color bitmap data
     "CBLC" => Unknown,                      // Color bitmap location data
-    "sbix" => Unknown,                      // Standard bitmap graphics
+    "sbix" => Unknown,                      // Standard bitmap graphics // TODO: Depends on `num_glyphs` from "maxp"
 
     // Advanced Typographic Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#advanced-typographic-tables
@@ -2469,12 +2469,65 @@ struct BitmapScale {
 //
 // sbix — Standard Bitmap Graphics Table
 //
-// <https://www.microsoft.com/typography/otspec/sbix.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/sbix>
 // <https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6sbix.html>
 //
 // =============================================================================
 
-// TODO
+union StandardBitmapGraphics (num_glyphs : U16) {
+    StandardBitmapGraphics1 num_glyphs,
+};
+
+struct StandardBitmapGraphics1 (num_glyphs : U16) {
+    start : Pos,
+
+    /// Table version number — set to 1
+    version : { version : U16Be | nat_eq version 1 },
+    flags : U16Be, // TODO: StandardBitmapGraphicsFlags
+    /// Number of bitmap strikes.
+    num_strikes : U32Be,
+    /// Offsets from the beginning of the 'sbix' table to data for each individual bitmap strike.
+    strike_offsets : Array num_strikes (Offset32Be start (Strike num_glyphs)),
+};
+
+// TODO: Bitfields
+// struct StandardBitmapGraphicsFlags {
+//     // Bit 0: Set to 1.
+//     reserved0 : Reserved U1 1,
+//     // Bit 1: Draw outlines.
+//     draw_outlines : U1,
+//     // Bits 2 to 15: reserved (set to 0).
+//     Reserved : Reserved U14 0,
+// };
+
+struct Strike (num_glyphs : U16) {
+    start : Pos,
+
+    /// The PPEM size for which this strike was designed.
+    ppem : U16Be,
+    /// The device pixel density (in PPI) for which this strike was designed. (E.g., 96 PPI, 192 PPI.)
+    ppi : U16Be,
+    /// Offset from the beginning of the strike data header to bitmap data for an individual glyph ID.
+    glyph_data_offsets : Array (nat_add num_glyphs 1) (Offset32Be start GlyphBitmapData),
+};
+
+struct GlyphBitmapData {
+    /// The horizontal (x-axis) offset from the left edge of the graphic to the
+    /// glyph’s origin. That is, the x-coordinate of the point on the baseline
+    /// at the left edge of the glyph.
+    origin_offset_x : S16Be,
+    /// The vertical (y-axis) offset from the bottom edge of the graphic to the
+    /// glyph’s origin. That is, the y-coordinate of the point on the baseline
+    /// at the left edge of the glyph.
+    origin_offset_y : S16Be,
+    /// Indicates the format of the embedded graphic data: one of 'jpg ', 'png '
+    /// or 'tiff', or the special format 'dupe'.
+    graphic_type : Tag,
+    /// The actual embedded graphic data. The total length is inferred from
+    /// sequential entries in the glyph_data_offsets array and the fixed size
+    /// (8 bytes) of the preceding fields.
+    data : VArray U8, // TODO: Length, and decode image data?
+};
 
 
 
