@@ -221,8 +221,8 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     "EBDT" => EmbeddedBitmapData,           // Embedded bitmap data // TODO: Depends on "EBLC" table
     "EBLC" => EmbeddedBitmapLocationData,   // Embedded bitmap location data // TODO: Depends on "EBDT" table start position
     "EBSC" => EmbeddedBitmapScalingData,    // Embedded bitmap scaling data
-    "CBDT" => Unknown,                      // Color bitmap data
-    "CBLC" => Unknown,                      // Color bitmap location data
+    "CBDT" => ColorBitmapData,              // Color bitmap data // TODO: Depends on "CBLC" table
+    "CBLC" => ColorBitmapLocationData,      // Color bitmap location data
     "sbix" => Unknown,                      // Standard bitmap graphics // TODO: Depends on `num_glyphs` from "maxp"
 
     // Advanced Typographic Tables
@@ -1991,6 +1991,19 @@ struct SmallGlyphMetrics {
     advance : U8,
 };
 
+// `image_format` from `IndexSubHeader` in "EBLC" table
+GlyphBitmapDataFormat (image_format : U16) = match image_format {
+    1 => GlyphBitmapDataFormat1,
+    2 => GlyphBitmapDataFormat2,
+    3 => GlyphBitmapDataFormat3,
+    4 => GlyphBitmapDataFormat4,
+    5 => GlyphBitmapDataFormat5,
+    6 => GlyphBitmapDataFormat6,
+    7 => GlyphBitmapDataFormat7,
+    8 => GlyphBitmapDataFormat8,
+    9 => GlyphBitmapDataFormat9,
+    _ => Unknown,
+};
 
 // -----------------------------------------------------------------------------
 // Format 1: small metrics, byte-aligned data
@@ -2151,7 +2164,7 @@ struct EmbeddedBitmapLocationData2 {
     /// Number of `BitmapSize` tables.
     num_sizes : U32Be,
     /// Array of `BitmapSize` tables.
-    bitmap_sizes : Array num_sizes (BitmapSize start),
+    bitmap_sizes : Array num_sizes (BitmapSize start), // FIXME: pass `bit_depth`?
 };
 
 
@@ -2171,7 +2184,7 @@ struct BitmapSize (embedded_bitmap_location_start : Pos) {
     /// There is an IndexSubtable for each range or format change.
     number_of_index_sub_tables : U32Be,
     /// Not used; set to 0.
-    color_ref : U32Be,
+    color_ref : Reserved U32Be, // TODO: Reserved U32Be 0,
     /// Line metrics for text rendered horizontally.
     horizontal : ScalarBitmapLineMetrics,
     /// Line metrics for text rendered vertically.
@@ -2184,8 +2197,16 @@ struct BitmapSize (embedded_bitmap_location_start : Pos) {
     ppem_x : U8,
     /// Vertical pixels per em.
     ppem_y : U8,
+    /// For bitmaps:
+    ///
     /// The Microsoft rasterizer v.1.7 or greater supports the following
     /// `bit_depth` values, as described below: 1, 2, 4, and 8.
+    ///
+    /// For color bitmaps:
+    ///
+    /// In addtition to already defined bitDepth values 1, 2, 4, and 8 supported
+    /// by existing implementations, the value of 32 is used to identify color
+    /// bitmaps with 8 bit per pixel RGBA channels.
     // TODO: bit_depth : BitDepth,
     bit_depth : U8,
     /// Vertical or horizontal (see Bitmap Flags, below).
@@ -2445,11 +2466,56 @@ struct BitmapScale {
 //
 // CBDT - Color Bitmap Data Table
 //
-// <https://www.microsoft.com/typography/otspec/cbdt.htm>
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/cbdt>
 //
 // =============================================================================
 
-// TODO
+union ColorBitmapData {
+    ColorBitmapData3,
+};
+
+struct ColorBitmapData3 {
+    /// Major version of the CBDT table, = 3.
+    major_version : { version : U16Be | nat_eq version 3 },
+    /// Minor version of the CBDT table, = 0.
+    minor_version : U16Be, // TODO: constrain version
+    // TODO: array of ColorGlyphBitmapDataFormat[17-19]
+};
+
+ColorGlyphBitmapDataFormat (image_format : U16) = match image_format {
+    17 => GlyphBitmapDataFormat17,
+    18 => GlyphBitmapDataFormat18,
+    19 => GlyphBitmapDataFormat19,
+    _ => Unknown,
+};
+
+/// Format 17: small metrics, PNG image data
+struct GlyphBitmapDataFormat17 {
+    /// Metrics information for the glyph
+    glyph_metrics : SmallGlyphMetrics,
+    /// Length of data in bytes
+    data_len : U32Be,
+    /// Raw PNG data
+    data : Array data_len U8,
+};
+
+/// Format 18: big metrics, PNG image data
+struct GlyphBitmapDataFormat18 {
+    /// Metrics information for the glyph
+    glyph_metrics : BigGlyphMetrics,
+    /// Length of data in bytes
+    data_len : U32Be,
+    /// Raw PNG data
+    data : Array data_len U8,
+};
+
+/// Format 19: metrics in CBLC table, PNG image data
+struct GlyphBitmapDataFormat19 {
+    /// Length of data in bytes
+    data_len : U32Be,
+    /// Raw PNG data
+    data : Array data_len U8,
+};
 
 
 
@@ -2461,7 +2527,18 @@ struct BitmapScale {
 //
 // =============================================================================
 
-// TODO
+struct ColorBitmapLocationData {
+    start : Pos,
+
+    /// Major version of the CBLC table, = 3.
+    major_version : { version : U16Be | nat_eq version 3 },
+    /// Minor version of the CBLC table, = 0.
+    minor_version : U16Be,
+    /// Number of BitmapSize tables
+    num_sizes : U32Be,
+    /// Array of `BitmapSize` tables.
+    bitmap_sizes : Array num_sizes (BitmapSize start), // FIXME: pass `bit_depth`?
+};
 
 
 
