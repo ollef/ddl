@@ -276,25 +276,38 @@ pub fn is_subtype(context: &Context, ty1: &RcType, ty2: &RcType) -> bool {
             is_subtype(context, &(scope.unsafe_pattern.1).0, ty2)
         },
 
-        _ if Type::term_eq(ty1, context.u16le()) => is_subtype(context, context.u16(), ty2),
-        _ if Type::term_eq(ty1, context.u32le()) => is_subtype(context, context.u32(), ty2),
-        _ if Type::term_eq(ty1, context.u64le()) => is_subtype(context, context.u64(), ty2),
-        _ if Type::term_eq(ty1, context.s16le()) => is_subtype(context, context.s16(), ty2),
-        _ if Type::term_eq(ty1, context.s32le()) => is_subtype(context, context.s32(), ty2),
-        _ if Type::term_eq(ty1, context.s64le()) => is_subtype(context, context.s64(), ty2),
+        _ if Type::term_eq(ty1, context.u16le()) && is_subtype(context, context.u16(), ty2) => true,
+        _ if Type::term_eq(ty1, context.u32le()) && is_subtype(context, context.u32(), ty2) => true,
+        _ if Type::term_eq(ty1, context.u64le()) && is_subtype(context, context.u64(), ty2) => true,
+        _ if Type::term_eq(ty1, context.s16le()) && is_subtype(context, context.s16(), ty2) => true,
+        _ if Type::term_eq(ty1, context.s32le()) && is_subtype(context, context.s32(), ty2) => true,
+        _ if Type::term_eq(ty1, context.s64le()) && is_subtype(context, context.s64(), ty2) => true,
         _ if Type::term_eq(ty1, context.f32le()) && Type::term_eq(ty2, context.f32()) => true,
         _ if Type::term_eq(ty1, context.f64le()) && Type::term_eq(ty2, context.f64()) => true,
-        _ if Type::term_eq(ty1, context.u16be()) => is_subtype(context, context.u16(), ty2),
-        _ if Type::term_eq(ty1, context.u32be()) => is_subtype(context, context.u32(), ty2),
-        _ if Type::term_eq(ty1, context.u64be()) => is_subtype(context, context.u64(), ty2),
-        _ if Type::term_eq(ty1, context.s16be()) => is_subtype(context, context.s16(), ty2),
-        _ if Type::term_eq(ty1, context.s32be()) => is_subtype(context, context.s32(), ty2),
-        _ if Type::term_eq(ty1, context.s64be()) => is_subtype(context, context.s64(), ty2),
+        _ if Type::term_eq(ty1, context.u16be()) && is_subtype(context, context.u16(), ty2) => true,
+        _ if Type::term_eq(ty1, context.u32be()) && is_subtype(context, context.u32(), ty2) => true,
+        _ if Type::term_eq(ty1, context.u64be()) && is_subtype(context, context.u64(), ty2) => true,
+        _ if Type::term_eq(ty1, context.s16be()) && is_subtype(context, context.s16(), ty2) => true,
+        _ if Type::term_eq(ty1, context.s32be()) && is_subtype(context, context.s32(), ty2) => true,
+        _ if Type::term_eq(ty1, context.s64be()) && is_subtype(context, context.s64(), ty2) => true,
         _ if Type::term_eq(ty1, context.f32be()) && Type::term_eq(ty2, context.f32()) => true,
         _ if Type::term_eq(ty1, context.f64be()) && Type::term_eq(ty2, context.f64()) => true,
 
-        // Fallback to alpha-equality
-        _ => Type::term_eq(ty1, ty2),
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        _ => {
+            // TODO: maybe use alpha equality in here?
+            if let (Some((_, t1)), Some(t2)) = (context.offset8(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+            if let (Some((_, t1)), Some(t2)) = (context.offset16le(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+            if let (Some((_, t1)), Some(t2)) = (context.offset16be(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+            if let (Some((_, t1)), Some(t2)) = (context.offset32le(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+            if let (Some((_, t1)), Some(t2)) = (context.offset32be(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+            if let (Some((_, t1)), Some(t2)) = (context.offset64le(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+            if let (Some((_, t1)), Some(t2)) = (context.offset64be(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+            if let (Some((_, _, t1)), Some(t2)) = (context.link(ty1), context.ptr(ty2)) { return is_subtype(context, t1, t2) }
+
+            // Fallback to alpha-equality
+            Type::term_eq(ty1, ty2)
+        },
     }
 }
 

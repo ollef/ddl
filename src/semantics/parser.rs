@@ -1,6 +1,7 @@
 use im;
 use moniker::{Binder, Embed, FreeVar, Var};
 use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 use std::io;
 
 use crate::semantics::{nf_term, Context, Definition, InternalError};
@@ -336,11 +337,31 @@ where
 
 fn queue_offset(
     pending: &mut PendingOffsets,
+    pos: &core::RcValue,
     offset: u64,
     ty: &core::RcType,
 ) -> Result<Value, ParseError> {
-    pending.push((offset, ty.clone()));
-    Ok(Value::Pos(offset))
+    match *pos.inner {
+        core::Value::Literal(core::Literal::Pos(pos)) => {
+            pending.push((pos + offset, ty.clone()));
+            Ok(Value::Pos(pos + offset))
+        },
+        _ => unimplemented!(),
+    }
+}
+
+fn queue_link(
+    pending: &mut PendingOffsets,
+    pos: &core::RcValue,
+    offset: &core::RcValue,
+    ty: &core::RcType,
+) -> Result<Value, ParseError> {
+    match *offset.inner {
+        core::Value::Literal(core::Literal::Int(ref offset, _)) => {
+            queue_offset(pending, pos, offset.to_u64().unwrap(), ty)
+        },
+        _ => unimplemented!(),
+    }
 }
 
 fn parse_term<T>(
@@ -354,7 +375,6 @@ where
 {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
     use moniker::BoundTerm;
-    use num_traits::ToPrimitive;
 
     use crate::syntax::IntFormat;
 
@@ -409,14 +429,14 @@ where
         #[cfg_attr(rustfmt, rustfmt_skip)]
         core::Value::Neutral(ref neutral) => {
             // Parse offsets
-            if let Some((pos, ty)) = context.offset8(ty) { return queue_offset(pending, pos + bytes.read_u8()? as u64, ty); }
-            if let Some((pos, ty)) = context.offset16le(ty) { return queue_offset(pending, pos + bytes.read_u16::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = context.offset16be(ty) { return queue_offset(pending, pos + bytes.read_u16::<Be>()? as u64, ty); }
-            if let Some((pos, ty)) = context.offset32le(ty) { return queue_offset(pending, pos + bytes.read_u32::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = context.offset32be(ty) { return queue_offset(pending, pos + bytes.read_u32::<Be>()? as u64, ty); }
-            if let Some((pos, ty)) = context.offset64le(ty) { return queue_offset(pending, pos + bytes.read_u64::<Le>()? as u64, ty); }
-            if let Some((pos, ty)) = context.offset64be(ty) { return queue_offset(pending, pos + bytes.read_u64::<Be>()? as u64, ty); }
-            if let Some((pos, offset, ty)) = context.link(ty) { return queue_offset(pending, pos + offset.to_u64().unwrap(), ty); }
+            if let Some((pos, ty)) = context.offset8(ty) { return queue_offset(pending, pos, bytes.read_u8()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset16le(ty) { return queue_offset(pending, pos, bytes.read_u16::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset16be(ty) { return queue_offset(pending, pos, bytes.read_u16::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset32le(ty) { return queue_offset(pending, pos, bytes.read_u32::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset32be(ty) { return queue_offset(pending, pos, bytes.read_u32::<Be>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset64le(ty) { return queue_offset(pending, pos, bytes.read_u64::<Le>()? as u64, ty); }
+            if let Some((pos, ty)) = context.offset64be(ty) { return queue_offset(pending, pos, bytes.read_u64::<Be>()? as u64, ty); }
+            if let Some((pos, offset, ty)) = context.link(ty) { return queue_link(pending, pos, offset, ty); }
 
             // Reserved things
             if let Some(elem_ty) = context.reserved(ty) {

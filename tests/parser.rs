@@ -1032,6 +1032,55 @@ fn intersection_mismatched_sizes() {
 }
 
 #[test]
+fn deref_offset() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let given_format = r#"
+        module test;
+
+        struct Test {
+            start : Pos,
+            length : Offset32Be start U32Be,
+            data : Array (deref U32Be length) U8,
+        };
+    "#;
+
+    let length_offset = (mem::size_of::<u32>() + mem::size_of::<u8>() * 3) as u64;
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let mut given_bytes = {
+        let mut given_bytes = Vec::new();
+
+        given_bytes.write_u32::<BigEndian>(length_offset as u32).unwrap(); // length
+        given_bytes.write_u8(42).unwrap(); // data[0]
+        given_bytes.write_u8(43).unwrap(); // data[1]
+        given_bytes.write_u8(44).unwrap(); // data[2]
+        given_bytes.write_u32::<BigEndian>(3).unwrap(); // *length
+
+        Cursor::new(given_bytes)
+    };
+
+    let raw_module = support::parse_module(&mut codemap, given_format)
+        .desugar(&desugar_env)
+        .unwrap();
+    let module = semantics::check_module(&context, &raw_module).unwrap();
+
+    assert_eq!(
+        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        im::hashmap! {
+            0 => Value::Struct(vec![
+                (label("start"), Value::Pos(0)),
+                (label("length"), Value::Pos(length_offset)),
+                (label("data"), Value::Array(vec![Value::int(42), Value::int(43), Value::int(44)])),
+            ]),
+            length_offset => Value::int(3),
+        },
+    );
+}
+
+#[test]
 fn parse_bitmap_nested() {
     let mut codemap = CodeMap::new();
     let context = Context::default();

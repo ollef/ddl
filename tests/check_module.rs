@@ -492,3 +492,56 @@ fn array_index() {
         panic!("type error!")
     }
 }
+
+#[test]
+fn deref_offset() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let src = r#"
+        module test;
+
+        struct Test {
+            start : Pos,
+            length : Offset32Be start U32Be,
+            data : Array (deref U32Be length) U8,
+        };
+    "#;
+
+    let raw_module = support::parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
+    }
+}
+
+#[test]
+fn deref_link() {
+    let mut codemap = CodeMap::new();
+    let context = Context::default();
+    let desugar_env = DesugarEnv::new(context.mappings());
+
+    let src = r#"
+        module test;
+
+        struct Test {
+            start : Pos,
+            length_offset : U32Be,
+            length : Link start length_offset U32Be,
+            data : Array (deref U32Be length) U8,
+        };
+    "#;
+
+    let raw_module = support::parse_module(&mut codemap, src)
+        .desugar(&desugar_env)
+        .unwrap();
+    if let Err(err) = semantics::check_module(&context, &raw_module) {
+        let writer = StandardStream::stdout(ColorChoice::Always);
+        codespan_reporting::emit(&mut writer.lock(), &codemap, &err.to_diagnostic()).unwrap();
+        panic!("type error!")
+    }
+}

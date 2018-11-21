@@ -365,6 +365,8 @@ pub struct Globals {
     var_compute_array: FreeVar<String>,
     var_reserved: FreeVar<String>,
     var_link: FreeVar<String>,
+    var_ptr: FreeVar<String>,
+    var_deref: FreeVar<String>,
     var_option: FreeVar<String>,
     var_some: FreeVar<String>,
     var_none: FreeVar<String>,
@@ -462,6 +464,8 @@ impl Default for Context {
         let var_compute_array = FreeVar::fresh_named("ComputeArray");
         let var_reserved = FreeVar::fresh_named("Reserved");
         let var_link = FreeVar::fresh_named("Link");
+        let var_ptr = FreeVar::fresh_named("Ptr");
+        let var_deref = FreeVar::fresh_named("deref");
         let var_option = FreeVar::fresh_named("Option");
         let var_some = FreeVar::fresh_named("some");
         let var_none = FreeVar::fresh_named("none");
@@ -530,6 +534,8 @@ impl Default for Context {
                 var_compute_array: var_compute_array.clone(),
                 var_reserved: var_reserved.clone(),
                 var_link: var_link.clone(),
+                var_ptr: var_ptr.clone(),
+                var_deref: var_deref.clone(),
                 var_option: var_option.clone(),
                 var_some: var_some.clone(),
                 var_none: var_none.clone(),
@@ -644,6 +650,32 @@ impl Default for Context {
             )))
         };
 
+        // Ptr : Type -> Type
+        let ptr_ty = RcValue::from(Value::Pi(Scope::new(
+            (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
+            universe0.clone(),
+        )));
+
+        // deref : (A : Type) -> Ptr A -> A
+        let deref_ty = {
+            let var_a = FreeVar::fresh_named("A");
+            let a_ty = RcValue::from(Value::var(Var::Free(var_a.clone())));
+
+            // Ptr A
+            let ptr_a_ty = RcValue::from(Value::Neutral(RcNeutral::from(Neutral::Head(
+                Head::Var(Var::Free(var_ptr.clone())),
+                vec![a_ty.clone()],
+            ))));
+
+            RcValue::from(Value::Pi(Scope::new(
+                (Binder(var_a.clone()), Embed(universe0.clone())),
+                RcValue::from(Value::Pi(Scope::new(
+                    (Binder(FreeVar::fresh_unnamed()), Embed(ptr_a_ty)),
+                    a_ty,
+                ))),
+            )))
+        };
+
         // Option : Type -> Type
         let option_ty = RcValue::from(Value::Pi(Scope::new(
             (Binder(FreeVar::fresh_unnamed()), Embed(universe0.clone())),
@@ -746,6 +778,8 @@ impl Default for Context {
         context.insert_declaration(var_compute_array, compute_array_ty);
         context.insert_declaration(var_reserved, reserved_ty);
         context.insert_declaration(var_link, link_ty);
+        context.insert_declaration(var_ptr, ptr_ty);
+        context.insert_declaration(var_deref, deref_ty);
 
         context.insert_declaration(var_unit_ty.clone(), universe0.clone());
         context.insert_definition(var_unit_ty, ty_unit_def);
@@ -766,12 +800,9 @@ fn free_var_app<'a>(free_var: &FreeVar<String>, ty: &'a RcType) -> Option<&'a [R
     }
 }
 
-fn offset_app<'a>(free_var: &FreeVar<String>, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+fn offset_app<'a>(free_var: &FreeVar<String>, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
     free_var_app(free_var, ty).and_then(|spine| match spine {
-        &[ref pos, ref elem_ty] => match **pos {
-            Value::Literal(Literal::Pos(pos)) => Some((pos, elem_ty)),
-            _ => None,
-        },
+        &[ref pos, ref elem_ty] => Some((pos, elem_ty)),
         _ => None,
     })
 }
@@ -915,31 +946,31 @@ impl Context {
         &self.globals.ty_f64be
     }
 
-    pub fn offset8<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset8<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
         offset_app(&self.globals.var_offset8, ty)
     }
 
-    pub fn offset16le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset16le<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
         offset_app(&self.globals.var_offset16le, ty)
     }
 
-    pub fn offset32le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset32le<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
         offset_app(&self.globals.var_offset32le, ty)
     }
 
-    pub fn offset64le<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset64le<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
         offset_app(&self.globals.var_offset64le, ty)
     }
 
-    pub fn offset16be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset16be<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
         offset_app(&self.globals.var_offset16be, ty)
     }
 
-    pub fn offset32be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset32be<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
         offset_app(&self.globals.var_offset32be, ty)
     }
 
-    pub fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a RcType)> {
+    pub fn offset64be<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcType)> {
         offset_app(&self.globals.var_offset64be, ty)
     }
 
@@ -980,12 +1011,24 @@ impl Context {
         })
     }
 
-    pub fn link<'a>(&self, ty: &'a RcType) -> Option<(u64, &'a BigInt, &'a RcType)> {
+    pub fn link<'a>(&self, ty: &'a RcType) -> Option<(&'a RcValue, &'a RcValue, &'a RcType)> {
         free_var_app(&self.globals.var_link, ty).and_then(|spine| match spine {
-            &[ref pos, ref len, ref elem_ty] => match (&**pos, &**len) {
-                (&Value::Literal(Literal::Pos(pos)), &Value::Literal(Literal::Int(ref len, _))) => {
-                    Some((pos, len, elem_ty))
-                },
+            &[ref pos, ref len, ref elem_ty] => Some((pos, len, elem_ty)),
+            _ => None,
+        })
+    }
+
+    pub fn ptr<'a>(&self, ty: &'a RcType) -> Option<&'a RcValue> {
+        free_var_app(&self.globals.var_ptr, ty).and_then(|spine| match spine {
+            &[ref elem_ty] => Some(elem_ty),
+            _ => None,
+        })
+    }
+
+    pub fn deref_<'a>(&self, ty: &'a RcType) -> Option<(&'a RcType, u64)> {
+        free_var_app(&self.globals.var_deref, ty).and_then(|spine| match spine {
+            &[ref elem_ty, ref pos] => match **pos {
+                Value::Literal(Literal::Pos(pos)) => Some((elem_ty, pos)),
                 _ => None,
             },
             _ => None,
