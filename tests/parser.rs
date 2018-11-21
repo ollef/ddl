@@ -34,7 +34,7 @@ fn silly_root() {
         };
     "#;
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u16::<BigEndian>(3).unwrap(); // len
@@ -42,7 +42,7 @@ fn silly_root() {
         given_bytes.write_u32::<BigEndian>(3).unwrap(); // data[1]
         given_bytes.write_u32::<BigEndian>(6).unwrap(); // data[2]
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -51,7 +51,13 @@ fn silly_root() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Silly"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Silly"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("len"), Value::int(3)),
@@ -82,13 +88,13 @@ fn missing_root() {
         .unwrap();
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
-    let mut given_bytes = Cursor::new(vec![]);
+    let given_bytes = Vec::new();
 
     let parsed_value = parser::parse_module(
         &context,
         &Label("Silly".to_owned()),
         &module,
-        &mut given_bytes,
+        &mut Cursor::new(&given_bytes),
     );
 
     match parsed_value {
@@ -119,14 +125,14 @@ fn pos() {
         };
     "#;
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(0).unwrap(); // data[0]
         given_bytes.write_u32::<BigEndian>(0).unwrap(); // data[1]
         given_bytes.write_u32::<BigEndian>(0).unwrap(); // data[2]
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -135,7 +141,13 @@ fn pos() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("PosTest"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
@@ -179,7 +191,7 @@ fn offset() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(0x123).unwrap(); // magic
@@ -190,7 +202,7 @@ fn offset() {
         given_bytes.write_u8(30).unwrap(); // *data[1]
         given_bytes.write_u8(35).unwrap(); // *data[0]
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -199,7 +211,13 @@ fn offset() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("PosTest"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("magic"), Value::int(0x123)),
@@ -240,14 +258,14 @@ fn offset_same_pos() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset1
         given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset2
         given_bytes.write_u8(25).unwrap(); // *offset1, *offset2
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -256,7 +274,13 @@ fn offset_same_pos() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("PosTest"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
@@ -285,14 +309,14 @@ fn offset_same_pos_different_tys() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset1
         given_bytes.write_u16::<BigEndian>(mem::size_of::<[u16; 2]>() as u16).unwrap(); // offset2
         given_bytes.write_u8(25).unwrap(); // *offset1, *offset2
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -300,7 +324,12 @@ fn offset_same_pos_different_tys() {
         .unwrap();
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
-    let parsed_value = parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes);
+    let parsed_value = parser::parse_module(
+        &context,
+        &label("PosTest"),
+        &module,
+        &mut Cursor::new(&given_bytes),
+    );
     match parsed_value {
         Ok(_) => panic!("expected error"),
         Err(ParseError::OffsetPointedToDifferentTypes(_, _)) => {},
@@ -339,7 +368,7 @@ fn link() {
     let pos1 = start + offset1 as u64;
     let pos2 = start + offset2 as u64;
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(0x123).unwrap(); // magic
@@ -352,7 +381,7 @@ fn link() {
         given_bytes.write_u8(30).unwrap(); // *(start + offset1)
         given_bytes.write_u8(35).unwrap(); // *(start + offset0)
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -361,7 +390,13 @@ fn link() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("PosTest"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("magic"), Value::int(0x123)),
@@ -407,14 +442,14 @@ fn link_same_pos() {
     let pos1 = start + offset1 as u64;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u16::<BigEndian>(offset0).unwrap(); // offset0
         given_bytes.write_u16::<BigEndian>(offset1).unwrap(); // offset1
         given_bytes.write_u8(25).unwrap(); // *(start + offset0), *(start + offset1)
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -423,7 +458,13 @@ fn link_same_pos() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("PosTest"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(start)),
@@ -459,14 +500,14 @@ fn link_same_pos_different_tys() {
     let offset1 = mem::size_of::<[u16; 2]>() as u16;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u16::<BigEndian>(offset0).unwrap(); // offset0
         given_bytes.write_u16::<BigEndian>(offset1).unwrap(); // offset1
         given_bytes.write_u8(25).unwrap(); // *(start + offset0), *(start + offset1)
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -474,7 +515,12 @@ fn link_same_pos_different_tys() {
         .unwrap();
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
-    let parsed_value = parser::parse_module(&context, &label("PosTest"), &module, &mut given_bytes);
+    let parsed_value = parser::parse_module(
+        &context,
+        &label("PosTest"),
+        &module,
+        &mut Cursor::new(&given_bytes),
+    );
     match parsed_value {
         Ok(_) => panic!("expected error"),
         Err(ParseError::OffsetPointedToDifferentTypes(_, _)) => {},
@@ -505,14 +551,14 @@ fn compute_array() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(2).unwrap(); // len
         given_bytes.write_u32::<BigEndian>(42).unwrap(); // data[0]
         given_bytes.write_u32::<BigEndian>(48).unwrap(); // data[1]
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -521,7 +567,13 @@ fn compute_array() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("len"), Value::int(2)),
@@ -553,9 +605,9 @@ fn compute() {
     ";
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let given_bytes = Vec::new();
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -564,7 +616,13 @@ fn compute() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("test"), Value::int(1)),
@@ -613,9 +671,9 @@ fn array_operations() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let given_bytes = Vec::new();
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -624,7 +682,13 @@ fn array_operations() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("test_map1"), Value::Array(vec![
@@ -660,12 +724,12 @@ fn reserved() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(42).unwrap(); // reserved
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -674,7 +738,13 @@ fn reserved() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("reserved"), Value::Struct(Vec::new())),
@@ -702,12 +772,12 @@ fn refinement_ok() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(0).unwrap(); // value
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -716,7 +786,13 @@ fn refinement_ok() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("value"), Value::int(0)),
@@ -745,12 +821,12 @@ fn refinement_fail() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(1).unwrap(); // value
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -758,7 +834,13 @@ fn refinement_fail() {
         .unwrap();
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
-    assert!(parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).is_err());
+    assert!(parser::parse_module(
+        &context,
+        &label("Test"),
+        &module,
+        &mut Cursor::new(&given_bytes)
+    )
+    .is_err());
 }
 
 #[test]
@@ -791,14 +873,14 @@ fn union_ok() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(2).unwrap(); // format
         given_bytes.write_u32::<BigEndian>(42).unwrap(); // data1
         given_bytes.write_u32::<BigEndian>(43).unwrap(); // data2
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -807,7 +889,13 @@ fn union_ok() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("format"), Value::int(2)),
@@ -848,14 +936,14 @@ fn union_fail() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(3).unwrap(); // format
         given_bytes.write_u32::<BigEndian>(42).unwrap(); // data1
         given_bytes.write_u32::<BigEndian>(43).unwrap(); // data2
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -863,7 +951,13 @@ fn union_fail() {
         .unwrap();
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
-    assert!(parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).is_err());
+    assert!(parser::parse_module(
+        &context,
+        &label("Test"),
+        &module,
+        &mut Cursor::new(&given_bytes)
+    )
+    .is_err());
 }
 
 #[test]
@@ -885,7 +979,7 @@ fn array_index() {
     "#;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(3).unwrap(); // lengths
@@ -893,7 +987,7 @@ fn array_index() {
         given_bytes.write_u8(43).unwrap(); // data[1]
         given_bytes.write_u8(44).unwrap(); // data[2]
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -902,7 +996,13 @@ fn array_index() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("lengths"), Value::Array(vec![Value::int(3)])),
@@ -952,7 +1052,7 @@ fn intersection_ok() {
     let offset = mem::size_of::<[u16; 3]>() as u16;
     let pos = start + offset as u64;
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u16::<BigEndian>(3).unwrap(); // len
@@ -962,7 +1062,7 @@ fn intersection_ok() {
         given_bytes.write_u32::<BigEndian>(123456789).unwrap(); // *offset[1]
         given_bytes.write_u32::<BigEndian>(42).unwrap(); // *offset[2]
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -971,7 +1071,13 @@ fn intersection_ok() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("init_data"), Value::Struct(vec![
@@ -1010,12 +1116,12 @@ fn intersection_mismatched_sizes() {
         };
     "#;
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_f32::<BigEndian>(256.256).unwrap(); // f32
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -1023,7 +1129,12 @@ fn intersection_mismatched_sizes() {
         .unwrap();
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
-    let parsed_value = parser::parse_module(&context, &label("Test"), &module, &mut given_bytes);
+    let parsed_value = parser::parse_module(
+        &context,
+        &label("Test"),
+        &module,
+        &mut Cursor::new(&given_bytes),
+    );
     match parsed_value {
         Ok(_) => panic!("expected error"),
         Err(ParseError::MismatchedIntersectionSize(2, 4)) => {},
@@ -1050,7 +1161,7 @@ fn deref_offset() {
     let length_offset = (mem::size_of::<u32>() + mem::size_of::<u8>() * 3) as u64;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(length_offset as u32).unwrap(); // length
@@ -1059,7 +1170,7 @@ fn deref_offset() {
         given_bytes.write_u8(44).unwrap(); // data[2]
         given_bytes.write_u32::<BigEndian>(3).unwrap(); // *length
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -1068,7 +1179,13 @@ fn deref_offset() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Test"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Test"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (label("start"), Value::Pos(0)),
@@ -1088,7 +1205,7 @@ fn parse_bitmap_nested() {
 
     let given_format = include_str!("./fixtures/bitmap_nested.ddl");
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(3).unwrap(); // header.width
@@ -1112,7 +1229,7 @@ fn parse_bitmap_nested() {
         given_bytes.write_f32::<BigEndian>(1.21).unwrap(); // data[1][2].g
         given_bytes.write_f32::<BigEndian>(1.22).unwrap(); // data[1][2].b
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -1121,7 +1238,13 @@ fn parse_bitmap_nested() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Bitmap"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (
@@ -1183,7 +1306,7 @@ fn parse_bitmap_flat() {
 
     let given_format = include_str!("./fixtures/bitmap_flat.ddl");
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write_u32::<BigEndian>(3).unwrap(); // header.width
@@ -1207,7 +1330,7 @@ fn parse_bitmap_flat() {
         given_bytes.write_f32::<BigEndian>(1.21).unwrap(); // data[(1 * 3) + 2].g
         given_bytes.write_f32::<BigEndian>(1.22).unwrap(); // data[(1 * 3) + 2].b
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -1216,7 +1339,13 @@ fn parse_bitmap_flat() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Bitmap"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Bitmap"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (
@@ -1274,7 +1403,7 @@ fn gif() {
 
     let given_format = include_str!("./fixtures/gif.ddl");
 
-    let mut given_bytes = {
+    let given_bytes = {
         let mut given_bytes = Vec::new();
 
         given_bytes.write(b"GIF").unwrap(); // header.magic
@@ -1285,7 +1414,7 @@ fn gif() {
         given_bytes.write_u8(0).unwrap(); // logical_screen.bg_color_index
         given_bytes.write_u8(0).unwrap(); // logical_screen.pixel_aspect_ratio
 
-        Cursor::new(given_bytes)
+        given_bytes
     };
 
     let raw_module = support::parse_module(&mut codemap, given_format)
@@ -1294,7 +1423,13 @@ fn gif() {
     let module = semantics::check_module(&context, &raw_module).unwrap();
 
     assert_eq!(
-        parser::parse_module(&context, &label("Gif"), &module, &mut given_bytes).unwrap(),
+        parser::parse_module(
+            &context,
+            &label("Gif"),
+            &module,
+            &mut Cursor::new(&given_bytes)
+        )
+        .unwrap(),
         im::hashmap! {
             0 => Value::Struct(vec![
                 (

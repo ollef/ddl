@@ -121,15 +121,12 @@ impl<'a> From<&'a Value> for core::Term {
     }
 }
 
-pub fn parse_module<T>(
+pub fn parse_module(
     context: &Context,
     root: &Label,
     module: &core::Module,
-    bytes: &mut io::Cursor<T>,
-) -> Result<im::HashMap<u64, Value>, ParseError>
-where
-    io::Cursor<T>: io::Read + io::Seek + Clone,
-{
+    bytes: &mut io::Cursor<&[u8]>,
+) -> Result<im::HashMap<u64, Value>, ParseError> {
     let mut context = context.clone();
     let mut pending = PendingOffsets::new();
 
@@ -236,16 +233,13 @@ where
     Err(ParseError::MissingRoot(root.clone()))
 }
 
-fn parse_intersection<T>(
+fn parse_intersection(
     context: &Context,
     pending: &mut PendingOffsets,
     fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
-    bytes: &mut io::Cursor<T>,
-) -> Result<Value, ParseError>
-where
-    io::Cursor<T>: io::Read + io::Seek + Clone,
-{
+    bytes: &mut io::Cursor<&[u8]>,
+) -> Result<Value, ParseError> {
     let mut parsed_fields = Vec::with_capacity(fields.len());
     let init_position = bytes.position();
     let mut final_bytes = None;
@@ -269,9 +263,12 @@ where
             Some(ref final_bytes) => {
                 let expected_size = final_bytes.position() - init_position;
                 if expected_size != current_size {
-                    return Err(ParseError::MismatchedIntersectionSize(expected_size, current_size));
+                    return Err(ParseError::MismatchedIntersectionSize(
+                        expected_size,
+                        current_size,
+                    ));
                 }
-            }
+            },
         }
     }
 
@@ -282,16 +279,13 @@ where
     Ok(Value::Struct(parsed_fields))
 }
 
-fn parse_struct<T>(
+fn parse_struct(
     context: &Context,
     pending: &mut PendingOffsets,
     fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
-    bytes: &mut io::Cursor<T>,
-) -> Result<Value, ParseError>
-where
-    io::Cursor<T>: io::Read + io::Seek + Clone,
-{
+    bytes: &mut io::Cursor<&[u8]>,
+) -> Result<Value, ParseError> {
     let fields = fields
         .into_iter()
         .map(|(label, binder, Embed(ann))| {
@@ -309,16 +303,13 @@ where
     Ok(Value::Struct(fields))
 }
 
-fn parse_union<T>(
+fn parse_union(
     context: &Context,
     pending: &mut PendingOffsets,
     variants: Vec<core::RcTerm>,
     mappings: Vec<(FreeVar<String>, core::RcTerm)>,
-    bytes: &mut io::Cursor<T>,
-) -> Result<Value, ParseError>
-where
-    io::Cursor<T>: io::Read + io::Seek + Clone,
-{
+    bytes: &mut io::Cursor<&[u8]>,
+) -> Result<Value, ParseError> {
     for ann in variants {
         let mut inner_bytes = bytes.clone();
         let mut inner_pending = pending.clone();
@@ -364,15 +355,12 @@ fn queue_link(
     }
 }
 
-fn parse_term<T>(
+fn parse_term(
     context: &Context,
     pending: &mut PendingOffsets,
     ty: &core::RcType,
-    bytes: &mut io::Cursor<T>,
-) -> Result<Value, ParseError>
-where
-    io::Cursor<T>: io::Read + io::Seek + Clone,
-{
+    bytes: &mut io::Cursor<&[u8]>,
+) -> Result<Value, ParseError> {
     use byteorder::{BigEndian as Be, LittleEndian as Le, ReadBytesExt};
     use moniker::BoundTerm;
 
