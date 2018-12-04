@@ -31,6 +31,9 @@ nat_mul = extern "int-mul";
 nat_div : int {0 ..} -> int {0 ..} -> int {0 ..};
 nat_div = extern "int-div";
 
+index : (len : int {0 ..}) (A : Type) -> int {0 ..} -> Array len A -> A;
+index _ _ = extern "array-index";
+
 // TODO: Nullable offsets?
 
 
@@ -113,10 +116,16 @@ struct OffsetTable (file_start : Pos) {
     /// NumTables x 16-searchRange
     range_shift : U16Be,
     /// FIXME: sorted in ascending order by tag
-    table_records : Array num_tables (OffsetTableRecord file_start),
+    table_records : Array num_tables OffsetTableRecord,
+    /// Links to offset records
+    record_links : ComputeArray num_tables Type (\i => FontTableLink file_start (index num_tables OffsetTableRecord i table_records)),
 };
 
-struct OffsetTableRecord (file_start : Pos) {
+FontTableLink : Pos -> OffsetTableRecord -> Type;
+FontTableLink file_start table_record =
+    Link file_start table_record.offset (FontTable table_record.tag table_record.length);
+
+struct OffsetTableRecord {
     /// Table identifier
     tag : Tag,
     /// CheckSum for this table
@@ -127,8 +136,6 @@ struct OffsetTableRecord (file_start : Pos) {
     offset : U32Be,
     /// Length of this table
     length : U32Be,
-    /// The computed position of this table
-    pos : Link file_start offset (FontTable tag length)
 };
 
 
