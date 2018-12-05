@@ -158,10 +158,10 @@ struct OffsetTable (file_start : Pos) {
     /// NumTables x 16-searchRange
     range_shift : U16Be,
     /// FIXME: sorted in ascending order by tag
-    table_records : Array num_tables (OffsetTableRecord file_start),
+    initial_table_records : Array num_tables (OffsetTableRecord file_start InitialFontTable),
 };
 
-struct OffsetTableRecord (file_start : Pos) {
+struct OffsetTableRecord (file_start : Pos) (T : (tag : Tag) (length : U32) -> Type) {
     /// Table identifier
     tag : Tag,
     /// CheckSum for this table
@@ -173,7 +173,7 @@ struct OffsetTableRecord (file_start : Pos) {
     /// Length of this table
     length : U32Be,
     /// The computed position of this table
-    pos : Link file_start offset (FontTable tag length)
+    font_table : Link file_start offset (T tag length)
 };
 
 
@@ -184,7 +184,7 @@ struct OffsetTableRecord (file_start : Pos) {
 // -----------------------------------------------------------------------------
 
 /// A mapping from a tag to the corresponding font table type
-FontTable (tag : Tag) (length : U32) = match tag.value {
+InitialFontTable (tag : Tag) (length : U32) = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
     "cmap" => CharMap,                      // Character to glyph mapping
@@ -271,6 +271,8 @@ FontTable (tag : Tag) (length : U32) = match tag.value {
     _ => Unknown,
 };
 
+
+// get_maximum_profile : (num_tables : U16) (file_start : Pos) -> Array num_tables (OffsetTableRecord file_start InitialFontTable) -> Option
 
 
 // =============================================================================
