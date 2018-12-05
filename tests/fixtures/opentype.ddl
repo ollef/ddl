@@ -94,45 +94,6 @@ union OpenType (file_start : Pos) {
 
 
 // -----------------------------------------------------------------------------
-// Offset Tables
-//
-// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
-// -----------------------------------------------------------------------------
-
-struct OffsetTable (file_start : Pos) {
-    /// 0x00010000 or 0x4F54544F ('OTTO')
-    ///
-    /// Apple allows 'true' and 'typ1' ?
-    sfnt_version : U32Be, // TODO: constrain version
-    /// Number of tables
-    num_tables : U16Be,
-    /// (Maximum power of 2 <= num_tables) x 16
-    search_range : U16Be,
-    /// Log2(maximum power of 2 <= num_tables)
-    entry_selector : U16Be,
-    /// NumTables x 16-searchRange
-    range_shift : U16Be,
-    /// FIXME: sorted in ascending order by tag
-    table_records : Array num_tables (OffsetTableRecord file_start),
-};
-
-struct OffsetTableRecord (file_start : Pos) {
-    /// Table identifier
-    tag : Tag,
-    /// CheckSum for this table
-    ///
-    /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
-    checksum : U32Be,
-    /// Offset from beginning of TrueType font file
-    offset : U32Be,
-    /// Length of this table
-    length : U32Be,
-    /// The computed position of this table
-    pos : Link file_start offset (FontTable tag length)
-};
-
-
-// -----------------------------------------------------------------------------
 // Font Collections
 //
 // <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
@@ -174,6 +135,45 @@ struct TtcHeader2 (file_start : Pos) {
     digital_signature_length : U32Be,
     /// The offset (in bytes) of the DSIG table from the beginning of the TTC file (null if no signature)
     digital_signature_offset : Offset32Be file_start (DigitalSignature digital_signature_length),
+};
+
+
+// -----------------------------------------------------------------------------
+// Offset Tables
+//
+// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font>
+// -----------------------------------------------------------------------------
+
+struct OffsetTable (file_start : Pos) {
+    /// 0x00010000 or 0x4F54544F ('OTTO')
+    ///
+    /// Apple allows 'true' and 'typ1' ?
+    sfnt_version : U32Be, // TODO: constrain version
+    /// Number of tables
+    num_tables : U16Be,
+    /// (Maximum power of 2 <= num_tables) x 16
+    search_range : U16Be,
+    /// Log2(maximum power of 2 <= num_tables)
+    entry_selector : U16Be,
+    /// NumTables x 16-searchRange
+    range_shift : U16Be,
+    /// FIXME: sorted in ascending order by tag
+    table_records : Array num_tables (OffsetTableRecord file_start),
+};
+
+struct OffsetTableRecord (file_start : Pos) {
+    /// Table identifier
+    tag : Tag,
+    /// CheckSum for this table
+    ///
+    /// <https://docs.microsoft.com/en-us/typography/opentype/spec/otff#calculating-checksums>
+    checksum : U32Be,
+    /// Offset from beginning of TrueType font file
+    offset : U32Be,
+    /// Length of this table
+    length : U32Be,
+    /// The computed position of this table
+    pos : Link file_start offset (FontTable tag length)
 };
 
 
