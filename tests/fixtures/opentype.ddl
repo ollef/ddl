@@ -158,10 +158,40 @@ struct OffsetTable (file_start : Pos) {
     /// NumTables x 16-searchRange
     range_shift : U16Be,
     /// FIXME: sorted in ascending order by tag
-    initial_table_records : Array num_tables (OffsetTableRecord file_start InitialFontTable),
+    initial_records : InitialOffsetTableRecords num_tables file_start,
 };
 
-struct OffsetTableRecord (file_start : Pos) (T : (tag : Tag) (length : U32) -> Type) {
+
+InitialOffsetTableRecords : U16 -> Pos -> Type;
+InitialOffsetTableRecords num_tables file_start =
+    Array num_tables (OffsetTableRecord file_start InitialFontTable);
+
+ComputedOffsetTableRecords : (num_tables : U16) (file_start : Pos) -> InitialOffsetTableRecords num_tables file_start -> Type;
+ComputedOffsetTableRecords num_tables file_start initial_records =
+    Array num_tables (OffsetTableRecord file_start (ComputedFontTable num_tables file_start initial_records));
+
+intersection OffsetTableRecords (num_tables : U16) (file_start : Pos) {
+    initial_records : InitialOffsetTableRecords num_tables file_start,
+    computed_records : ComputedOffsetTableRecords num_tables file_start initial_records,
+};
+
+// get_initial_font_table :
+//     (num_tables : U16) (file_start : Pos) (tag : Tag) ->
+//     InitialOffsetTableRecords num_tables file_start ->
+//     Option (TaggedFontTable tag InitialFontTable);
+
+// get_initial_font_table num_tables _ tag =
+//     array_find_map
+//         num_tables
+//         (OffsetTableRecord file_start InitialFontTable)
+//         (\record => if array_eq 4 U8 record.tag tag {
+//             Some (struct { length, font_table = record.font_table })
+//         } else {
+//             None
+//         });
+
+
+struct OffsetTableRecord (file_start : Pos) (T : Tag -> U32 -> Type) {
     /// Table identifier
     tag : Tag,
     /// CheckSum for this table
@@ -176,6 +206,11 @@ struct OffsetTableRecord (file_start : Pos) (T : (tag : Tag) (length : U32) -> T
     font_table : Link file_start offset (T tag length)
 };
 
+// struct TaggedFontTable (tag : Tag) (T : Tag -> U32 -> Type) {
+//     length : U32,
+//     font_table : Ptr (T tag length),
+// };
+
 
 // -----------------------------------------------------------------------------
 // Font Tables
@@ -184,13 +219,14 @@ struct OffsetTableRecord (file_start : Pos) (T : (tag : Tag) (length : U32) -> T
 // -----------------------------------------------------------------------------
 
 /// A mapping from a tag to the corresponding font table type
-InitialFontTable (tag : Tag) (length : U32) = match tag.value {
+InitialFontTable : Tag -> U32 -> Type;
+InitialFontTable tag length = match tag.value {
     // Required Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#required-tables
     "cmap" => CharMap,                      // Character to glyph mapping
     "head" => FontHeader,                   // Font header
     "hhea" => HorizontalHeader,             // Horizontal header
-    "hmtx" => Unknown,                      // Horizontal metrics // TODO: Depends on `num_glyphs` and `number_of_h_metrics` from "hhea"
+    // "hmtx" => Unknown,                   // SKIPPED: See `ComputedFontTable`
     "maxp" => MaximumProfile,               // Maximum profile
     "name" => Naming,                       // Naming table
     "OS/2" => Os2,                          // OS/2 and Windows specific metrics
@@ -198,11 +234,10 @@ InitialFontTable (tag : Tag) (length : U32) = match tag.value {
 
     // Tables Related to TrueType Outlines
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-truetype-outlines
-
     "cvt " => ControlValue length,          // Control Value Table (optional table)
     "fpgm" => FontProgram length,           // Font program (optional table)
-    "glyf" => Unknown,                      // Glyph data // TODO: Depends on `num_glyphs` from "maxp"
-    "loca" => Unknown,                      // Index to location // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
+    // "glyf" => Unknown,                   // SKIPPED: See `ComputedFontTable`
+    // "loca" => Unknown,                   // SKIPPED: See `ComputedFontTable`
     "prep" => ControlValueProgram length,   // CVT Program (optional table)
     "gasp" => GridFittingScanConversion,    // Grid-fitting/Scan-conversion (optional table)
 
@@ -218,9 +253,9 @@ InitialFontTable (tag : Tag) (length : U32) = match tag.value {
 
     // Tables Related to Bitmap Glyphs
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-bitmap-glyphs
-    "EBDT" => EmbeddedBitmapData,           // Embedded bitmap data // TODO: Depends on "EBLC" table
-    "EBLC" => EmbeddedBitmapLocationData,   // Embedded bitmap location data // TODO: Depends on "EBDT" table start position
-    "EBSC" => EmbeddedBitmapScalingData,    // Embedded bitmap scaling data
+    // "EBDT" => Unknown,                   // TODO: Break into phases
+    // "EBLC" => Unknown,                   // TODO: Break into phases
+    "EBSC" => Unknown,                      // Embedded bitmap scaling data
     "CBDT" => Unknown,                      // Color bitmap data
     "CBLC" => Unknown,                      // Color bitmap location data
     "sbix" => Unknown,                      // Standard bitmap graphics
@@ -242,37 +277,55 @@ InitialFontTable (tag : Tag) (length : U32) = match tag.value {
     "gvar" => Unknown,                      // Glyph variations (TrueType outlines only)
     "HVAR" => Unknown,                      // Horizontal metrics variations
     "MVAR" => Unknown,                      // Metrics variations
-    // "STAT" => StyleAttributes,              // Style attributes (required for variable fonts, optional for non-variable fonts)
+    // "STAT" => StyleAttributes,           // SKIPPED: Defined in 'Other OpenType Tables'
     "VVAR" => Unknown,                      // Vertical metrics variations
 
     // Tables Related to Color Fonts
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#tables-related-to-color-fonts
     "COLR" => Color,                        // Color table
     "CPAL" => ColorPalette,                 // Color palette table
-    // "CBDT" => Unknown,                      // Color bitmap data
-    // "CBLC" => Unknown,                      // Color bitmap location data
-    // "sbix" => Unknown,                      // Standard bitmap graphics
-    // "SVG " => Svg,                          // The SVG (Scalable Vector Graphics) table
+    // "CBDT" => Unknown,                   // TODO: Color bitmap data
+    // "CBLC" => Unknown,                   // TODO: Color bitmap location data
+    // "sbix" => Unknown,                   // TODO: Standard bitmap graphics
+    // "SVG " => Svg,                       // SKIPPED: Defined in 'Table Related to SVG Outlines'
 
     // Other OpenType Tables
     // https://docs.microsoft.com/en-us/typography/opentype/spec/otff#other-opentype-tables
     "DSIG" => DigitalSignature length,      // Digital signature
-    "hdmx" => Unknown,                      // Horizontal device metrics // TODO: Depends on `num_glyphs` from "maxp"
+    // "hdmx" => Unknown,                   // SKIPPED: See `ComputedFontTable`
     "kern" => Kerning,                      // Kerning
-    "LTSH" => LinearThreshold,              // Linear threshold data // TODO: Depends on `num_glyphs` from "maxp"
+    // "LTSH" => Unknown,                   // SKIPPED: See `ComputedFontTable`
     "MERG" => Merge,                        // Merge
     "meta" => Metadata,                     // Metadata
     "STAT" => StyleAttributes,              // Style attributes
     "PCLT" => Pcl5,                         // PCL 5 data
     "VDMX" => VerticalDeviceMetrics,        // Vertical device metrics
     "vhea" => VerticalHeader,               // Vertical Metrics header
-    "vmtx" => Unknown,                      // Vertical Metrics // TODO: Depends on `num_glyphs` from "maxp" and `num_of_long_vertical_metrics` from "vhea"
+    // "vmtx" => Unknown,                   // SKIPPED: See `ComputedFontTable`
 
     _ => Unknown,
 };
 
+ComputedFontTable : (num_tables : U16) (file_start : Pos) -> InitialOffsetTableRecords num_tables file_start -> Tag -> U32 -> Type;
+ComputedFontTable num_tables file_start initial_records tag length = match tag.value {
+    // Required Tables
+    "hmtx" => Unknown,                      // Horizontal metrics               // TODO: Depends on `num_glyphs` from "maxp", `number_of_h_metrics` from "hhea"
 
-// get_maximum_profile : (num_tables : U16) (file_start : Pos) -> Array num_tables (OffsetTableRecord file_start InitialFontTable) -> Option
+    // Tables Related to TrueType Outlines
+    "glyf" => Unknown,                      // Glyph data                       // TODO: Depends on `num_glyphs` from "maxp"
+    "loca" => Unknown,                      // Index to location                // TODO: Depends on `num_glyphs` from "maxp", offset to "glyph", `index_to_loc_format` from "head"
+
+    // Tables Related to Bitmap Glyphs
+    "EBDT" => EmbeddedBitmapData,           // Embedded bitmap data             // TODO: Depends on "EBLC" table
+    "EBLC" => EmbeddedBitmapLocationData,   // Embedded bitmap location data    // TODO: Depends on "EBDT" table start position
+
+    // Other OpenType Tables
+    "hdmx" => Unknown,                      // Horizontal device metrics        // TODO: Depends on `num_glyphs` from "maxp"
+    "LTSH" => LinearThreshold,              // Linear threshold data            // TODO: Depends on `num_glyphs` from "maxp"
+    "vmtx" => Unknown,                      // Vertical Metrics                 // TODO: Depends on `num_glyphs` from "maxp" and `num_of_long_vertical_metrics` from "vhea"
+
+    _ => InitialFontTable tag length,
+};
 
 
 // =============================================================================
