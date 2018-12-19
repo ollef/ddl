@@ -121,6 +121,18 @@ impl<'a> From<&'a Value> for core::Term {
     }
 }
 
+pub fn do_deref<T>(
+    context: &Context,
+    pending: &mut PendingOffsets,
+    ptr: &core::RcValue,
+    bytes: &mut io::Cursor<T>,
+) -> Result<core::RcValue, InternalError>
+where
+    io::Cursor<T>: io::Read + io::Seek + Clone,
+{
+    unimplemented!("deref!")
+}
+
 /// Reduce a term to its normal form
 pub fn nf_term<T>(
     context: &Context,
@@ -223,6 +235,13 @@ where
                                     match (prim.interpretation)(context, &spine)? {
                                         Some(value) => return Ok(value),
                                         None => {},
+                                    }
+                                } else {
+                                    match (name.as_str(), spine.as_slice()) {
+                                        ("deref", &[ref ptr]) => {
+                                            return do_deref(context, pending, ptr, bytes);
+                                        },
+                                        _ => {},
                                     }
                                 }
 
