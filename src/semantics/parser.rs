@@ -40,7 +40,7 @@ impl From<io::Error> for ParseError {
 type PendingOffsets = Vec<(u64, core::RcType)>;
 
 /// A cache of the previously parsed values and their corresponding core types
-pub type ParsedValues = im::HashMap<u64, (Value, core::RcType)>;
+pub type ParsedValues = im::HashMap<u64, (Value, core::RcType)>; // do we need the type? - color bitmap tables, htmx?
 
 /// Values returned as a result of parsing a binary format
 #[derive(Debug, Clone, PartialEq)]
@@ -124,22 +124,66 @@ impl<'a> From<&'a Value> for core::Term {
     }
 }
 
+impl<'a> From<&'a Value> for core::Value {
+    fn from(src: &'a Value) -> core::Value {
+        use crate::syntax::core::Literal;
+        use crate::syntax::{FloatFormat, IntFormat};
+
+        match *src {
+            Value::Pos(value) => core::Value::Literal(Literal::Pos(value)),
+            Value::Int(ref value) => {
+                core::Value::Literal(Literal::Int(value.clone(), IntFormat::Dec))
+            },
+            Value::F32(value) => core::Value::Literal(Literal::F32(value.into(), FloatFormat::Dec)),
+            Value::F64(value) => core::Value::Literal(Literal::F64(value.into(), FloatFormat::Dec)),
+            Value::Bool(value) => core::Value::Literal(Literal::Bool(value)),
+            Value::String(ref value) => core::Value::Literal(Literal::String(value.clone())),
+            Value::Struct(ref fields) => {
+                let fields = fields
+                    .iter()
+                    .map(|&(ref label, ref val)| {
+                        (label.clone(), core::RcValue::from(core::Value::from(val)))
+                    })
+                    .collect();
+
+                core::Value::Struct(fields)
+            },
+            Value::Array(ref elems) => {
+                let elems = elems
+                    .iter()
+                    .map(|elem| core::RcValue::from(core::Value::from(elem)))
+                    .collect();
+
+                core::Value::Array(elems)
+            },
+        }
+    }
+}
+
 pub fn ptr_deref<T>(
     context: &Context,
     pending: &mut PendingOffsets,
+    parsed: &mut ParsedValues,
     ptr: &core::RcValue,
     bytes: &mut io::Cursor<T>,
 ) -> Result<core::RcValue, InternalError>
 where
     io::Cursor<T>: io::Read + io::Seek + Clone,
 {
-    unimplemented!("deref!")
+    match *ptr.inner {
+        core::Value::Literal(core::Literal::Pos(value)) => match parsed.get(&value) {
+            Some(&(ref value, _)) => Ok(core::RcValue::from(core::Value::from(value))),
+            None => unimplemented!("position not yet parsed"),
+        },
+        _ => unimplemented!("not a position"),
+    }
 }
 
 /// Reduce a term to its normal form
 pub fn nf_term<T>(
     context: &Context,
     pending: &mut PendingOffsets,
+    parsed: &mut ParsedValues,
     term: &core::RcTerm,
     bytes: &mut io::Cursor<T>,
 ) -> Result<core::RcValue, InternalError>
@@ -149,7 +193,7 @@ where
     println!("parser::nf_term: {}", term);
     match *term.inner {
         // E-ANN
-        core::Term::Ann(ref expr, _) => nf_term(context, pending, expr, bytes),
+        core::Term::Ann(ref expr, _) => nf_term(context, pending, parsed, expr, bytes),
 
         // E-TYPE
         core::Term::Universe(level) => Ok(core::RcValue::from(core::Value::Universe(level))),
@@ -157,12 +201,12 @@ where
         core::Term::IntType(ref min, ref max) => {
             let min = match *min {
                 None => None,
-                Some(ref x) => Some(nf_term(context, pending, x, bytes)?),
+                Some(ref x) => Some(nf_term(context, pending, parsed, x, bytes)?),
             };
 
             let max = match *max {
                 None => None,
-                Some(ref x) => Some(nf_term(context, pending, x, bytes)?),
+                Some(ref x) => Some(nf_term(context, pending, parsed, x, bytes)?),
             };
 
             Ok(core::RcValue::from(core::Value::IntType(min, max)))
@@ -173,7 +217,9 @@ where
         // E-VAR, E-VAR-DEF
         core::Term::Var(ref var) => match *var {
             Var::Free(ref name) => match context.get_definition(name) {
-                Some(&Definition::Alias(ref term)) => nf_term(context, pending, term, bytes),
+                Some(&Definition::Alias(ref term)) => {
+                    nf_term(context, pending, parsed, term, bytes)
+                },
                 Some(&Definition::IntersectionType(_))
                 | Some(&Definition::StructType(_))
                 | Some(&Definition::UnionType(_))
@@ -198,8 +244,8 @@ where
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
             Ok(core::RcValue::from(core::Value::Pi(Scope::new(
-                (name, Embed(nf_term(context, pending, &ann, bytes)?)),
-                nf_term(context, pending, &body, bytes)?,
+                (name, Embed(nf_term(context, pending, parsed, &ann, bytes)?)),
+                nf_term(context, pending, parsed, &body, bytes)?,
             ))))
         },
 
@@ -208,26 +254,27 @@ where
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
             Ok(core::RcValue::from(core::Value::Lam(Scope::new(
-                (name, Embed(nf_term(context, pending, &ann, bytes)?)),
-                nf_term(context, pending, &body, bytes)?,
+                (name, Embed(nf_term(context, pending, parsed, &ann, bytes)?)),
+                nf_term(context, pending, parsed, &body, bytes)?,
             ))))
         },
 
         // E-APP
         core::Term::App(ref head, ref arg) => {
-            match *nf_term(context, pending, head, bytes)?.inner {
+            match *nf_term(context, pending, parsed, head, bytes)?.inner {
                 core::Value::Lam(ref scope) => {
                     // FIXME: do a local unbind here
                     let ((Binder(free_var), Embed(_)), body) = scope.clone().unbind();
                     nf_term(
                         context,
                         pending,
+                        parsed,
                         &body.substs(&[(free_var, arg.clone())]),
                         bytes,
                     )
                 },
                 core::Value::Neutral(ref neutral) => {
-                    let arg = nf_term(context, pending, arg, bytes)?;
+                    let arg = nf_term(context, pending, parsed, arg, bytes)?;
 
                     Ok(core::RcValue::from(core::Value::Neutral(
                         core::RcNeutral::from(match *neutral.inner {
@@ -245,7 +292,7 @@ where
                                 } else {
                                     match (name.as_str(), spine.as_slice()) {
                                         ("ptr-deref", &[ref ptr]) => {
-                                            return ptr_deref(context, pending, ptr, bytes);
+                                            return ptr_deref(context, pending, parsed, ptr, bytes);
                                         },
                                         _ => {},
                                     }
@@ -282,8 +329,8 @@ where
             let ((name, Embed(ann)), body) = scope.clone().unbind();
 
             Ok(core::RcValue::from(core::Value::Refinement(Scope::new(
-                (name, Embed(nf_term(context, pending, &ann, bytes)?)),
-                nf_term(context, pending, &body, bytes)?,
+                (name, Embed(nf_term(context, pending, parsed, &ann, bytes)?)),
+                nf_term(context, pending, parsed, &body, bytes)?,
             ))))
         },
 
@@ -292,7 +339,10 @@ where
             let fields = fields
                 .iter()
                 .map(|&(ref label, ref term)| {
-                    Ok((label.clone(), nf_term(context, pending, &term, bytes)?))
+                    Ok((
+                        label.clone(),
+                        nf_term(context, pending, parsed, &term, bytes)?,
+                    ))
                 })
                 .collect::<Result<_, _>>()?;
 
@@ -301,7 +351,7 @@ where
 
         // E-PROJ
         core::Term::Proj(ref expr, ref label) => {
-            match *nf_term(context, pending, expr, bytes)? {
+            match *nf_term(context, pending, parsed, expr, bytes)? {
                 core::Value::Neutral(ref neutral) => {
                     return Ok(core::RcValue::from(core::Value::Neutral(
                         core::RcNeutral::from(core::Neutral::Proj(
@@ -328,7 +378,7 @@ where
 
         // E-CASE
         core::Term::Match(ref head, ref clauses) => {
-            let head = nf_term(context, pending, head, bytes)?;
+            let head = nf_term(context, pending, parsed, head, bytes)?;
 
             if let core::Value::Neutral(ref neutral) = *head {
                 Ok(core::RcValue::from(core::Value::Neutral(
@@ -340,7 +390,7 @@ where
                                 let (pattern, body) = clause.clone().unbind();
                                 Ok(Scope::new(
                                     pattern,
-                                    nf_term(context, pending, &body, bytes)?,
+                                    nf_term(context, pending, parsed, &body, bytes)?,
                                 ))
                             })
                             .collect::<Result<_, _>>()?,
@@ -350,12 +400,14 @@ where
             } else {
                 for clause in clauses {
                     let (pattern, body) = clause.clone().unbind();
-                    if let Some(mappings) = match_value(context, pending, &pattern, &head, bytes)? {
+                    if let Some(mappings) =
+                        match_value(context, pending, parsed, &pattern, &head, bytes)?
+                    {
                         let mappings = mappings
                             .into_iter()
                             .map(|(free_var, value)| (free_var, core::RcTerm::from(&*value.inner)))
                             .collect::<Vec<_>>();
-                        return nf_term(context, pending, &body.substs(&mappings), bytes);
+                        return nf_term(context, pending, parsed, &body.substs(&mappings), bytes);
                     }
                 }
                 Err(InternalError::NoPatternsApplicable)
@@ -366,7 +418,7 @@ where
         core::Term::Array(ref elems) => Ok(core::RcValue::from(core::Value::Array(
             elems
                 .iter()
-                .map(|elem| nf_term(context, pending, elem, bytes))
+                .map(|elem| nf_term(context, pending, parsed, elem, bytes))
                 .collect::<Result<_, _>>()?,
         ))),
     }
@@ -377,6 +429,7 @@ where
 pub fn match_value<T>(
     context: &Context,
     pending: &mut PendingOffsets,
+    parsed: &mut ParsedValues,
     pattern: &core::RcPattern,
     value: &core::RcValue,
     bytes: &mut io::Cursor<T>,
@@ -391,7 +444,7 @@ where
         (&core::Pattern::Var(Embed(Var::Free(ref free_var))), _) => match context
             .get_definition(free_var)
             .and_then(|definition| match definition {
-                Definition::Alias(ref term) => Some(nf_term(context, pending, term, bytes)),
+                Definition::Alias(ref term) => Some(nf_term(context, pending, parsed, term, bytes)),
                 Definition::IntersectionType(_)
                 | Definition::StructType(_)
                 | Definition::UnionType(_) => None,
@@ -426,8 +479,8 @@ where
         if label == *root {
             let root_value = match definition {
                 core::Definition::Alias { ref term, .. } => {
-                    let term = nf_term(&context, &mut pending, term, bytes)?;
-                    parse_term(&context, &mut pending, &term, bytes)?
+                    let term = nf_term(&context, &mut pending, &mut parsed, term, bytes)?;
+                    parse_term(&context, &mut pending, &mut parsed, &term, bytes)?
                 },
                 core::Definition::IntersectionType { ref scope } => {
                     let (params, fields_scope) = scope.clone().unbind();
@@ -441,7 +494,14 @@ where
                     let fields = fields.clone().unnest();
                     let mappings = Vec::with_capacity(fields.len());
 
-                    parse_intersection(&context, &mut pending, fields, mappings, bytes)?
+                    parse_intersection(
+                        &context,
+                        &mut pending,
+                        &mut parsed,
+                        fields,
+                        mappings,
+                        bytes,
+                    )?
                 },
                 core::Definition::StructType { ref scope } => {
                     let (params, fields_scope) = scope.clone().unbind();
@@ -455,7 +515,7 @@ where
                     let fields = fields.clone().unnest();
                     let mappings = Vec::with_capacity(fields.len());
 
-                    parse_struct(&context, &mut pending, fields, mappings, bytes)?
+                    parse_struct(&context, &mut pending, &mut parsed, fields, mappings, bytes)?
                 },
                 core::Definition::UnionType { ref scope } => {
                     let (params, variants) = scope.clone().unbind();
@@ -465,7 +525,7 @@ where
                         return Err(ParseError::ParametrizedUnionType);
                     }
 
-                    parse_union(&context, &mut pending, variants, vec![], bytes)?
+                    parse_union(&context, &mut pending, &mut parsed, variants, vec![], bytes)?
                 },
             };
 
@@ -487,7 +547,8 @@ where
                     // This position has not yet been parsed!
                     Entry::Vacant(parsed_entry) => {
                         bytes.set_position(pos); // FIXME: Bounds check?
-                        let value = parse_term(&mut context, &mut pending, &ty, bytes)?;
+                        let value =
+                            parse_term(&mut context, &mut pending, &mut parsed, &ty, bytes)?;
                         parsed_entry.insert((value, ty));
                     },
                     // Was already parsed!
@@ -531,6 +592,7 @@ where
 fn parse_intersection<T>(
     context: &Context,
     pending: &mut PendingOffsets,
+    parsed: &mut ParsedValues,
     fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
     bytes: &mut io::Cursor<T>,
@@ -545,8 +607,8 @@ where
     for (label, binder, Embed(ann)) in fields {
         let mut inner_bytes = bytes.clone();
 
-        let ann = nf_term(context, pending, &ann.substs(&mappings), bytes)?;
-        let ann_value = parse_term(context, pending, &ann, &mut inner_bytes)?;
+        let ann = nf_term(context, pending, parsed, &ann.substs(&mappings), bytes)?;
+        let ann_value = parse_term(context, pending, parsed, &ann, &mut inner_bytes)?;
         mappings.push((
             binder.0.clone(),
             core::RcTerm::from(core::Term::from(&ann_value)),
@@ -580,6 +642,7 @@ where
 fn parse_struct<T>(
     context: &Context,
     pending: &mut PendingOffsets,
+    parsed: &mut ParsedValues,
     fields: Vec<(Label, Binder<String>, Embed<core::RcTerm>)>,
     mut mappings: Vec<(FreeVar<String>, core::RcTerm)>,
     bytes: &mut io::Cursor<T>,
@@ -590,8 +653,8 @@ where
     let fields = fields
         .into_iter()
         .map(|(label, binder, Embed(ann))| {
-            let ann = nf_term(context, pending, &ann.substs(&mappings), bytes)?;
-            let ann_value = parse_term(context, pending, &ann, bytes)?;
+            let ann = nf_term(context, pending, parsed, &ann.substs(&mappings), bytes)?;
+            let ann_value = parse_term(context, pending, parsed, &ann, bytes)?;
             mappings.push((
                 binder.0.clone(),
                 core::RcTerm::from(core::Term::from(&ann_value)),
@@ -607,6 +670,7 @@ where
 fn parse_union<T>(
     context: &Context,
     pending: &mut PendingOffsets,
+    parsed: &mut ParsedValues,
     variants: Vec<core::RcTerm>,
     mappings: Vec<(FreeVar<String>, core::RcTerm)>,
     bytes: &mut io::Cursor<T>,
@@ -618,9 +682,9 @@ where
         let mut inner_bytes = bytes.clone();
         let mut inner_pending = pending.clone();
 
-        let ann = nf_term(context, pending, &ann.substs(&mappings), bytes)?;
+        let ann = nf_term(context, pending, parsed, &ann.substs(&mappings), bytes)?;
 
-        if let Ok(value) = parse_term(context, &mut inner_pending, &ann, &mut inner_bytes) {
+        if let Ok(value) = parse_term(context, &mut inner_pending, parsed, &ann, &mut inner_bytes) {
             *bytes = inner_bytes;
             *pending = inner_pending;
             return Ok(value);
@@ -662,6 +726,7 @@ fn queue_link(
 fn parse_term<T>(
     context: &Context,
     pending: &mut PendingOffsets,
+    parsed: &mut ParsedValues,
     ty: &core::RcType,
     bytes: &mut io::Cursor<T>,
 ) -> Result<Value, ParseError>
@@ -697,12 +762,13 @@ where
 
         core::Value::Refinement(ref scope) => {
             let ((Binder(free_var), Embed(ann)), pred) = scope.clone().unbind();
-            let ann_value = parse_term(context, pending, &ann, bytes)?;
+            let ann_value = parse_term(context, pending, parsed, &ann, bytes)?;
             let pred_value = {
                 let ann_value = core::RcTerm::from(core::Term::from(&ann_value));
                 nf_term(
                     context,
                     pending,
+                    parsed,
                     &pred.substs(&[(free_var, ann_value)]),
                     bytes,
                 )?
@@ -740,7 +806,7 @@ where
 
             // Reserved things
             if let Some(elem_ty) = context.reserved(ty) {
-                parse_term(context, pending, elem_ty, bytes)?;
+                parse_term(context, pending, parsed, elem_ty, bytes)?;
                 return Ok(Value::Struct(Vec::new()));
             }
 
@@ -748,7 +814,7 @@ where
             if let Some((len, elem_ty)) = context.array(ty) {
                 return Ok(Value::Array(
                     (0..len.to_usize().unwrap()) // FIXME
-                        .map(|_| parse_term(context, pending, elem_ty, bytes))
+                        .map(|_| parse_term(context, pending, parsed, elem_ty, bytes))
                         .collect::<Result<_, _>>()?,
                 ));
             }
@@ -758,6 +824,7 @@ where
                 return Value::try_from_core_value(&nf_term(
                     context,
                     pending,
+                    parsed,
                     &core::RcTerm::from(core::Term::App(
                         core::RcTerm::from(core::Term::from(&**fun)),
                         core::RcTerm::from(core::Term::Struct(vec![])),
@@ -773,6 +840,7 @@ where
                         .map(|i| Value::try_from_core_value(&nf_term(
                             context,
                             pending,
+                            parsed,
                             &core::RcTerm::from(core::Term::App(
                                 core::RcTerm::from(core::Term::from(&**fun)),
                                 core::RcTerm::from(core::Term::Literal(
@@ -810,7 +878,7 @@ where
                                 mappings.push((free_var.clone(), arg));
                             }
 
-                            parse_intersection(context, pending, fields, mappings, bytes)
+                            parse_intersection(context, pending, parsed, fields, mappings, bytes)
                         }
                         Some(&Definition::StructType(ref scope)) => {
                             let (params, fields_scope) = scope.clone().unbind();
@@ -831,7 +899,7 @@ where
                                 mappings.push((free_var.clone(), arg));
                             }
 
-                            parse_struct(context, pending, fields, mappings, bytes)
+                            parse_struct(context, pending, parsed, fields, mappings, bytes)
                         },
                         Some(&Definition::UnionType(ref scope)) => {
                             let (params, variants) = scope.clone().unbind();
@@ -850,7 +918,7 @@ where
                                 mappings.push((free_var.clone(), arg));
                             }
 
-                            parse_union(context, pending, variants, mappings, bytes)
+                            parse_union(context, pending, parsed, variants, mappings, bytes)
                         },
                         // Definition not found
                         None => Err(ParseError::InvalidType(ty.clone())),
