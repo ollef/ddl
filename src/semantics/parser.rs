@@ -39,6 +39,9 @@ impl From<io::Error> for ParseError {
 /// A stack of references that we still need to parse
 type PendingOffsets = Vec<(u64, core::RcType)>;
 
+/// A cache of the previously parsed values and their corresponding core types
+pub type ParsedValues = im::HashMap<u64, (Value, core::RcType)>;
+
 /// Values returned as a result of parsing a binary format
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -411,12 +414,13 @@ pub fn parse_module<T>(
     root: &Label,
     module: &core::Module,
     bytes: &mut io::Cursor<T>,
-) -> Result<im::HashMap<u64, Value>, ParseError>
+) -> Result<ParsedValues, ParseError>
 where
     io::Cursor<T>: io::Read + io::Seek + Clone,
 {
     let mut context = context.clone();
     let mut pending = PendingOffsets::new();
+    let mut parsed = ParsedValues::new();
 
     for (label, Binder(free_var), Embed(definition)) in module.items.clone().unnest() {
         if label == *root {
@@ -465,40 +469,43 @@ where
                 },
             };
 
-            // A dump of the previously parsed values
-            let mut parsed_values = im::HashMap::new();
-            // A cache of the core types we've looked at through offsets
-            let mut parsed_tys = im::HashMap::<u64, core::RcValue>::new();
-
             // Add root definition
-            parsed_values.insert(0, root_value);
+            parsed.insert(
+                0,
+                (
+                    root_value,
+                    core::RcValue::from(core::Value::var(Var::Free(free_var))),
+                ),
+            );
 
             // Follow pending offsets until exhausted ヾ(｡ꏿ﹏ꏿ)ﾉﾞ
             while let Some((pos, ty)) = pending.pop() {
                 use im::hashmap::Entry;
                 use moniker::BoundTerm;
 
-                match parsed_values.entry(pos) {
+                match parsed.entry(pos) {
                     // This position has not yet been parsed!
                     Entry::Vacant(parsed_entry) => {
                         bytes.set_position(pos); // FIXME: Bounds check?
                         let value = parse_term(&mut context, &mut pending, &ty, bytes)?;
-                        parsed_entry.insert(value);
-                        parsed_tys.insert(pos, ty);
+                        parsed_entry.insert((value, ty));
                     },
                     // Was already parsed!
-                    Entry::Occupied(_) => {
+                    Entry::Occupied(parsed_entry) => {
                         // It's ok to refer to the same region of memory from
                         // two locations in the same file if the types match
-                        let parsed_ty = parsed_tys.get(&pos).expect("expected entry").clone();
-                        if !core::Type::term_eq(&parsed_ty, &ty.inner) {
-                            return Err(ParseError::OffsetPointedToDifferentTypes(ty, parsed_ty));
+                        let &(_, ref parsed_ty) = parsed_entry.get();
+                        if !core::Type::term_eq(parsed_ty, &ty.inner) {
+                            return Err(ParseError::OffsetPointedToDifferentTypes(
+                                ty,
+                                parsed_ty.clone(),
+                            ));
                         }
                     },
                 }
             }
 
-            return Ok(parsed_values);
+            return Ok(parsed);
         } else {
             context.insert_definition(
                 free_var.clone(),
