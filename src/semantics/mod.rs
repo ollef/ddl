@@ -573,15 +573,7 @@ pub fn check_term(
         },
 
         (&raw::Term::Extern(_, name_span, ref name), _) => {
-            match context.get_extern_definition(name) {
-                Some(_) => return Ok(RcTerm::from(Term::Extern(name.clone()))),
-                None => {
-                    return Err(TypeError::UndefinedExternName {
-                        span: name_span,
-                        name: name.clone(),
-                    });
-                },
-            }
+            return Ok(RcTerm::from(Term::Extern(name.clone())));
         },
 
         // C-LAM
@@ -790,13 +782,7 @@ pub fn infer_term(
             .into()),
         },
 
-        raw::Term::Extern(span, name_span, ref name) => match context.get_extern_definition(name) {
-            Some(_) => Err(TypeError::AmbiguousExtern { span }),
-            None => Err(TypeError::UndefinedExternName {
-                span: name_span,
-                name: name.clone(),
-            }),
-        },
+        raw::Term::Extern(span, name_span, ref name) => Err(TypeError::AmbiguousExtern { span }),
 
         // I-PI
         raw::Term::Pi(_, ref raw_scope) => {

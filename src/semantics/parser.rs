@@ -121,7 +121,7 @@ impl<'a> From<&'a Value> for core::Term {
     }
 }
 
-pub fn do_deref<T>(
+pub fn ptr_deref<T>(
     context: &Context,
     pending: &mut PendingOffsets,
     ptr: &core::RcValue,
@@ -143,6 +143,7 @@ pub fn nf_term<T>(
 where
     io::Cursor<T>: io::Read + io::Seek + Clone,
 {
+    println!("parser::nf_term: {}", term);
     match *term.inner {
         // E-ANN
         core::Term::Ann(ref expr, _) => nf_term(context, pending, expr, bytes),
@@ -231,6 +232,8 @@ where
                                 let mut spine = spine.clone();
                                 spine.push(arg);
 
+                                println!("parser::nf_term: {}", name);
+
                                 if let Some(prim) = context.get_extern_definition(name) {
                                     match (prim.interpretation)(context, &spine)? {
                                         Some(value) => return Ok(value),
@@ -238,8 +241,8 @@ where
                                     }
                                 } else {
                                     match (name.as_str(), spine.as_slice()) {
-                                        ("deref", &[ref ptr]) => {
-                                            return do_deref(context, pending, ptr, bytes);
+                                        ("ptr-deref", &[ref ptr]) => {
+                                            return ptr_deref(context, pending, ptr, bytes);
                                         },
                                         _ => {},
                                     }

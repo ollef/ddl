@@ -136,8 +136,6 @@ pub enum TypeError {
         span: ByteSpan,
         free_var: FreeVar<String>,
     },
-    #[fail(display = "Undefined extern name `{:?}`", name)]
-    UndefinedExternName { span: ByteSpan, name: String },
     #[fail(
         display = "Label mismatch: found label `{}` but `{}` was expected",
         found, expected
@@ -291,12 +289,6 @@ impl TypeError {
             TypeError::UndefinedName { ref free_var, span } => {
                 Diagnostic::new_bug(format!("cannot find `{}` in scope", free_var))
                     .with_label(Label::new_primary(span).with_message("not found in this scope"))
-            },
-            TypeError::UndefinedExternName { span, ref name } => {
-                Diagnostic::new_error(format!("cannot find external definition for `{:?}`", name))
-                    .with_label(
-                        Label::new_primary(span).with_message("external definition not found"),
-                    )
             },
             TypeError::LabelMismatch {
                 span,

@@ -26,25 +26,6 @@ fn undefined_name() {
 }
 
 #[test]
-fn extern_not_found() {
-    let mut codemap = CodeMap::new();
-    let context = Context::default();
-    let desugar_env = DesugarEnv::new(context.mappings());
-
-    let given_expr = r#"extern "does-not-exist" : U32"#;
-
-    let raw_term = support::parse_term(&mut codemap, given_expr)
-        .desugar(&desugar_env)
-        .unwrap();
-
-    match semantics::infer_term(&context, &raw_term) {
-        Err(TypeError::UndefinedExternName { .. }) => {},
-        Err(err) => panic!("unexpected error: {:?}", err),
-        Ok((term, ty)) => panic!("expected error, found {} : {}", term, ty),
-    }
-}
-
-#[test]
 fn ty() {
     let mut codemap = CodeMap::new();
     let context = Context::default();

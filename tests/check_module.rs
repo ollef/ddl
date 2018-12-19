@@ -528,6 +528,9 @@ fn deref_link() {
     let src = r#"
         module test;
 
+        deref : (A : Type) -> Ptr A -> A;
+        deref _ = extern "ptr-deref";
+
         struct Test {
             start : Pos,
             length_offset : U32Be,

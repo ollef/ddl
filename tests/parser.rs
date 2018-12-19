@@ -1040,6 +1040,9 @@ fn deref_offset() {
     let given_format = r#"
         module test;
 
+        deref : (A : Type) -> Ptr A -> A;
+        deref _ = extern "ptr-deref";
+
         struct Test {
             start : Pos,
             length : Offset32Be start U32Be,
